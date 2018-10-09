@@ -1,4 +1,5 @@
 @prefix cc: <http://www.colourcountry.net/thing/> .
+@prefix ccc: <http://www.colourcountry.net/thing//> .
 @prefix owl:   <http://www.w3.org/2002/07/owl#> .
 @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
 @prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
@@ -9,29 +10,23 @@ cc:Document a owl:Class
 ;  rdfs:subClassOf skos:Concept
 .
 
-cc:title a owl:DatatypeProperty
-;  rdfs:domain  skos:Concept
-;  rdfs:label "title"@en
-;  rdfs:range xsd:string
-.
-
 cc:published a owl:DatatypeProperty
 ;  rdfs:domain  skos:Concept
 ;  rdfs:label "published"@en
 ;  rdfs:range xsd:dateTime
 .
 
-<test> a cc:Document
-;  cc:title "Test page H"@en
+cc:test a cc:Document
+;  skos:prefLabel "Test page H"@en
 ;  cc:published "2018-10-08T23:08:00.000+01:00"^^xsd:dateTime
 .
 
-<testmarkdown> a cc:Document
-;   cc:title "Test page M"@en
+cc:testmarkdown a cc:Document
+;  skos:prefLabel "Test page M"@en
 .
 
 <testinlinemarkdown> a cc:Document;
-;  cc:title "Test page I"@en
+;  skos:prefLabel "Test page I"@en
 ;  cc:markdown """
 # Test Markdown support in FALSE
 
