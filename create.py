@@ -5,6 +5,7 @@ from rdflib.namespace import RDF, DC, SKOS, OWL
 import sys, logging, os, uuid, re
 import ipfsapi
 import jinja2, markdown
+import pprint
 
 IPFS_CLIENT = ipfsapi.connect('127.0.0.1',5001)
 TTL_BASE = "test"
@@ -29,6 +30,7 @@ def buildGraph(g):
     gg.bind('dc', DC)
     gg.bind('skos', SKOS)
     gg.bind('owl', OWL)
+    gg.bind('ipfs', '/ipfs/')
 
     DOCS = {}
     ENTS = {}
@@ -67,58 +69,164 @@ def buildGraph(g):
                 logging.warn("Couldn't open %s" % fn)
     return gg
 
-def safePath(g,p):
-    for (px, n) in g.namespaces():
-        if p.startswith(n):
-            return px+'_'+p[len(n):]
-    return re.sub('[^A-Za-z]','_',p)
-
-class GhostSet(set):
-    '''A set that converts to string as just the concatenation of its members'''
+class TemplatableSet(set):
+    '''This set can be referenced in templates.
+    If there are multiple items in the set they are concatenated.
+    If the items of the set are all sets, each attribute of the set is the union of that attribute of all its items.
+    The rationale is that by traversing the graph of entities you will end up at a set of sets of literals,
+    which will be the thing you want to display.'''
+    
     def __str__(self):
-        return ''.join([str(i) for i in self])
+        return ''.join(str(i) for i in self)
 
-def buildSPO(g):
-    spo = {}
-    for s, p, o in g:
-        p = safePath(g,p)
+    def surround(self, pfx, sfx, ifx=''):
+        return pfx+(sfx+ifx+pfx).join(str(i) for i in self)+sfx
 
-        if s not in spo:
-            spo[s] = {'__self__': s}
+    def __getattr__(self, a):
+        s = TemplatableSet()
+        for i in self:
+            g = getattr(i, a)
+            if not isinstance(g, set):
+                raise AttributeError('Attribute %s of element %s was not a set' % (a, i))
+            s.update(g)
+        return s
 
-        if p in spo[s]:
-            spo[s][p].add(o)
+class TemplatableEntity:
+    def __init__(self, s, safe):
+        self.id = s
+        self.safe = safe
+        self.po = {}
+        self.op = {}
+
+    def __hash__(self):
+        return id(self)
+
+    def __eq__(self):
+        return self.safe == other.safe
+
+    def add(self, p, o):
+        if p not in self.po:
+            self.po[p] = TemplatableSet()
+        self.po[p].add(o)
+        if o not in self.op:
+            self.op[o] = TemplatableSet()
+        self.op[o].add(p)
+
+    def __getattr__(self, a):
+        if a in self.po:
+            return self.po[a]
+        return set()
+
+    def __str__(self):
+        return self.id
+
+    def __repr__(self):
+        r = "<Entity %s (%s) :=\n" % (self.id, self.safe)
+        for p in self.po:
+            r += " + %s %s\n" % (p, ','.join(str(x) for x in self.po[p]))
+        return r+">\n"
+
+class TemplatablePredicate:
+    def __init__(self, p, safe):
+        self.id = p
+        self.safe = safe
+        self.so = {}
+
+    def __str__(self):
+        return self.id
+
+    def __repr__(self):
+        return "<Predicate %s (%s)>" % (self.id, self.safe)
+
+    def __hash__(self):
+        return id(self)
+
+    def __eq__(self, other):
+        return self.safe == other.safe
+
+    def add(self, s, o):
+        if s not in self.so:
+            self.so[s] = TemplatableSet()
+        self.so[s].add(o)
+
+class TemplatableGraph:
+    def __init__(self, g=None):
+        if g is None:
+            self.g = Graph()
         else:
-            spo[s][p] = GhostSet({o})
+            self.g = g
 
-    return spo
+        self.entities = {}
+        self.predicates = {}
+        self.inv_predicates = {}
+
+        for s, p, o in g:
+            self.add(s, p, o)
+
+    def safePath(self, p):
+        for (px, n) in self.g.namespaces():
+            if p.startswith(n):
+                return px+'_'+p[len(n):]
+        return "lit_"+re.sub('[^A-Za-z0-9]','_',p)
+
+    def __contains__(self, e):
+        return (self.safePath(e) in self.entities)
+
+    def __getattr__(self, a):
+        if a in self.entities:
+            return self.entities[a]
+        raise AttributeError(a)
+
+    def add(self, s, p, o):
+        ss, sp, so = self.safePath(s), self.safePath(p), self.safePath(o)
+        if ss not in self.entities:
+            self.entities[ss] = TemplatableEntity(s, ss)
+        s = self.entities[ss]
+        if sp not in self.predicates:
+            self.predicates[sp] = TemplatablePredicate(p, sp)
+        p = self.predicates[sp]
+        if sp not in self.inv_predicates:
+            tempinv = TemplatablePredicate('inv_'+p.id, 'inv_'+p.safe)
+            self.inv_predicates[sp] = tempinv
+            self.inv_predicates[tempinv.safe] = p
+
+        if isinstance(o,rdflib.Literal):
+            s.add(sp, o)
+        else:
+            if so not in self.entities:
+                self.entities[so] = TemplatableEntity(o, so)
+            o = self.entities[so]
+            o.add(self.inv_predicates[sp].safe,s)
+            s.add(sp, o)
+
+
+
 
 def publish(g):
     md = markdown.Markdown()
-    spo = buildSPO(g)
-    for s in spo:
-        tyy = spo[s][safePath(g,RDF.type)]
-        for ty in tyy:
+    tg = TemplatableGraph(g)
+
+    for e in tg.entities:
+        for eType in tg.entities[e].rdf_type:
             try:
-                sty = safePath(g, ty)
-                dest = s.replace(CC[''],"pub/"+sty+"/")
-                with open(os.path.join('templates',sty),'r') as f:
+                dest = os.path.join("pub",eType.safe,e)
+                with open(os.path.join('templates',eType.safe),'r') as f:
                     t = jinja2.Template(f.read())
-            except IOError as e:
-                logging.debug("No template for %s: %s" % (sty, e))
+            except IOError as err:
+                logging.debug("No template for %s: %s" % (eType.safe, err))
                 continue
 
             logging.warn('Building %s' % dest)
 
-            for r in spo[s].get(safePath(g,CC.rendition),{}):
-                mt = spo[r].get(safePath(g,CC.mediaType),{})
-                enc = str(spo[r].get(safePath(g,CC.encoding),{'utf-8'}).pop()) # only one encoding
+            for r in tg.entities[e].cc_rendition:
+                mt = r.cc_mediaType
+                enc = r.cc_charset.pop()
 
                 if rdflib.Literal('text/markdown') in mt:
-                    spo[s]['__html__'] = md.convert(IPFS_CLIENT.cat(r))
-                    content = t.render(spo[s])
+                    tg.add(tg.entities[e].id, CC.html, rdflib.Literal(md.convert(IPFS_CLIENT.cat(r.id).decode(enc))))
+                    content = t.render(tg.entities[e].po)
                 elif rdflib.Literal('text/html') in mt:
-                    content = IPFS_CLIENT.cat(r).decode(enc)
+                    content = IPFS_CLIENT.cat(r.id).decode(enc)
                 else:
                     spo[s]['__html__'] = '<object type="%s" href="%s"></object>' % (str(mt.pop()), r)
 

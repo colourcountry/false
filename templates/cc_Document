@@ -3,6 +3,22 @@
         <title>{{ skos_prefLabel }}</title>
     </head>
     <body>
-        {{ __html__ }}
+        <h1>{{ skos_prefLabel }}</h1>
+        <h2>a {{ rdf_type.rdfs_label.surround('<span class="label">','</span>',',\n') }}</h2>
+        <section>
+            {{ cc_html }}
+        </section>
+        <section>
+            {% if skos_related %}
+                <ul>
+                    {{ skos_related.surround('<li>','</li>','\n') }}
+                </ul>
+            {% endif %}
+            {% if inv_skos_related %}
+                <ul>
+                    {{ inv_skos_related.surround('<li>','</li>','\n') }}
+                </ul>
+            {% endif %}
+        </section>
     </body>
 </html>

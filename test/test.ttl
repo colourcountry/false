@@ -7,6 +7,12 @@
 
 cc:Document a owl:Class
 ;  rdfs:label "Document"@en
+;  rdfs:label "Documento"@es
+;  rdfs:subClassOf skos:Concept
+.
+
+cc:Article a owl:Class
+;  rdfs:label "Article"@en
 ;  rdfs:subClassOf skos:Concept
 .
 
@@ -21,17 +27,19 @@ cc:test a cc:Document
 ;  cc:published "2018-10-08T23:08:00.000+01:00"^^xsd:dateTime
 .
 
-cc:testmarkdown a cc:Document
+cc:testmarkdown a cc:Document, cc:Article
 ;  skos:prefLabel "Test page M"@en
 .
 
 <testinlinemarkdown> a cc:Document;
 ;  skos:prefLabel "Test page I"@en
+;  skos:related cc:test
+;  skos:related cc:testmarkdown
 ;  cc:markdown """
-# Test Markdown support in FALSE
+# Test inline Markdown support in FALSE
 
 This should be converted into something flashier.
 
-_v1.0.0 of 2018-10-08_
+_v1.1.0 of 2018-10-09_
 """@en
 .
