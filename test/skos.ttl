@@ -1,0 +1,17 @@
+@prefix owl:   <http://www.w3.org/2002/07/owl#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
+
+skos:related a owl:ObjectProperty, owl:SymmetricProperty
+;  rdfs:label "has related"@en
+.
+
+skos:narrower a owl:ObjectProperty
+;  rdfs:label "has narrower"@en
+;  owl:inverseOf skos:broader
+.
+
+skos:broader a owl:ObjectProperty
+;  rdfs:label "has broader"@en
+;  owl:inverseOf skos:narrower
+.

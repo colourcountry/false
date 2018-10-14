@@ -33,7 +33,7 @@ cc:testmarkdown a cc:Document, cc:Article
 
 <testinlinemarkdown> a cc:Document;
 ;  skos:prefLabel "Test page I"@en
-;  skos:related cc:test
+;  skos:broader cc:test
 ;  skos:related cc:testmarkdown
 ;  cc:markdown """
 # Test inline Markdown support in FALSE
