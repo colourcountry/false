@@ -1,0 +1,52 @@
+@prefix f: <http://www.colourcountry.net/false/model/> .
+@prefix m: <http://www.colourcountry.net/id/model/> .
+@prefix owl:   <http://www.w3.org/2002/07/owl#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
+
+m:Site a owl:Class
+;  rdfs:label "Site"@en
+;  rdfs:subClassOf skos:Concept
+.
+
+m:description a owl:DatatypeProperty
+;  rdfs:label "description"@en
+;  rdfs:domain skos:Concept
+;  rdfs:range xsd:string
+.
+
+m:published a owl:DatatypeProperty
+;  rdfs:label "published"@en
+;  rdfs:domain m:Document
+;  rdfs:range xsd:dateTime
+.
+
+m:updated a owl:DatatypeProperty
+;  rdfs:label "updated"@en
+;  rdfs:domain skos:Concept
+;  rdfs:range xsd:dateTime
+.
+
+m:featuredOn a owl:ObjectProperty
+;  rdfs:label "is on"@en
+;  rdfs:domain f:CreativeWork
+;  rdfs:range m:Site
+;  rdfs:subClassOf skos:broader
+;  owl:inverseOf m:features
+.
+
+m:features a owl:ObjectProperty
+;  rdfs:label "includes"@en
+;  rdfs:domain m:Site
+;  rdfs:range f:CreativeWork
+;  rdfs:subClassOf skos:narrower
+;  owl:inverseOf m:featuredOn
+.
+
+m:about a owl:ObjectProperty
+;  rdfs:label "about"@en
+;  rdfs:domain m:CreativeWork
+;  rdfs:range skos:Concept
+;  rdfs:subClassOf skos:related
+.

@@ -1,0 +1,7 @@
+@prefix m: <http://www.colourcountry.net/id/model/> .
+@prefix s: <http://www.colourcountry.net/id/site/> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+
+s:Site a m:Site
+;  skos:prefLabel "My web site"@en
+.

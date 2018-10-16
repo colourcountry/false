@@ -1,42 +1,27 @@
-@prefix cc: <http://www.colourcountry.net/thing/> .
-@prefix ccc: <http://www.colourcountry.net/thing//> .
-@prefix owl:   <http://www.w3.org/2002/07/owl#> .
+@prefix s: <http://www.colourcountry.net/id/site/> .
+@prefix f: <http://www.colourcountry.net/false/model/> .
+@prefix m: <http://www.colourcountry.net/id/model/> .
 @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
-@prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
 
-cc:Document a owl:Class
-;  rdfs:label "Document"@en
-;  rdfs:label "Documento"@es
-;  rdfs:subClassOf skos:Concept
+s:testmarkdown a f:Document
+;  m:featuredOn s:Site
+;  skos:prefLabel "Test document sourced from a markdown file"@en
+;  m:published "2018-10-12T23:08:00.000+01:00"^^xsd:dateTime
 .
 
-cc:Article a owl:Class
-;  rdfs:label "Article"@en
-;  rdfs:subClassOf skos:Concept
+s:test a f:Document
+;  m:featuredOn s:Site
+;  skos:prefLabel "Test HTML document"@en
+;  m:published "2018-10-15T23:08:00.000+01:00"^^xsd:dateTime
 .
 
-cc:published a owl:DatatypeProperty
-;  rdfs:domain  skos:Concept
-;  rdfs:label "published"@en
-;  rdfs:range xsd:dateTime
-.
-
-cc:test a cc:Document
-;  skos:prefLabel "Test page H"@en
-;  cc:published "2018-10-08T23:08:00.000+01:00"^^xsd:dateTime
-.
-
-cc:testmarkdown a cc:Document, cc:Article
-;  skos:prefLabel "Test page M"@en
-.
-
-<testinlinemarkdown> a cc:Document;
-;  skos:prefLabel "Test page I"@en
-;  skos:broader cc:test
-;  skos:related cc:testmarkdown
-;  cc:markdown """
-# Test inline Markdown support in FALSE
+s:testinlinemarkdown a f:Document
+;  m:featuredOn s:Site
+;  skos:prefLabel "Test document sourced from inline markdown"@en
+;  m:published "2018-10-15T1:08:00.000+01:00"^^xsd:dateTime
+;  m:markdown """
+# Test Markdown support in FALSE
 
 This should be converted into something flashier.
 

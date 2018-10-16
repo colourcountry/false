@@ -1,0 +1,38 @@
+@prefix f: <http://www.colourcountry.net/false/model/> .
+@prefix owl:   <http://www.w3.org/2002/07/owl#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
+
+f:CreativeWork a owl:Class
+;  rdfs:label "Article"@en
+;  rdfs:subClassOf skos:Concept
+.
+
+f:Document a owl:Class
+;  rdfs:label "Document"@en
+;  rdfs:subClassOf f:CreativeWork
+.
+
+f:Media a owl:Class
+;  rdfs:label "Media"@en
+;  rdfs:subClassOf skos:Concept
+.
+
+f:mediaType a owl:DatatypeProperty
+;  rdfs:label "media type"@en
+;  rdfs:domain f:Media
+;  rdfs:range xsd:string
+.
+
+f:charset a owl:DatatypeProperty
+;  rdfs:label "character set"@en
+;  rdfs:domain f:Media
+;  rdfs:range xsd:string
+.
+
+f:rendition a owl:DatatypeProperty
+;  rdfs:label "Rendition"@en
+;  rdfs:domain f:Document
+;  rdfs:range f:Media
+.
