@@ -1,0 +1,44 @@
+<html>
+    <head>
+        <title>{{ skos_prefLabel }}</title>
+    </head>
+    <body>
+        <h1>{{ skos_prefLabel }}</h1>
+        <h2>a {{ rdf_type.rdfs_label.surround('<span class="label">','</span>',',\n') }}</h2>
+        <section>
+            {{ cc_html }}
+        </section>
+        <section>
+            {% if skos_related %}
+                <h3>Related</h3>
+                <ul>
+                    {% for item in skos_related %}
+                        <li><a href="{{ item.url() }}">{{ item.skos_prefLabel }}</a></li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+            {% if skos_broader %}
+                <h3>Broader</h3>
+                <ul>
+                    {% for item in skos_broader %}
+                        <li><a href="{{ item.url() }}">{{ item.skos_prefLabel }}</a></li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+            {% if skos_narrower %}
+                <h3>Narrower</h3>
+                <ul>
+                    {% for item in skos_narrower %}
+                        <li><a href="{{ item.url() }}">{{ item.skos_prefLabel }}</a></li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+            {% if inv_skos_related %}
+                <h3>Shouldn't happen</h3>
+                <ul>
+                    {{ inv_skos_related.surround('<li>','</li>','\n') }}
+                </ul>
+            {% endif %}
+        </section>
+    </body>
+</html>
