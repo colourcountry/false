@@ -28,12 +28,16 @@ class TemplatableSet(set):
     def __getattr__(self, a):
         s = TemplatableSet()
         for i in self:
-            logging.debug("Looking for attribute %s on %s" % (a, repr(i)))
-            g = getattr(i, a)
-            if isinstance(g, set):
-                s.update(g)
+            # Any AttributeError raised inside __getattr__ will get mysteriously swallowed,
+            # even if unrelated to self, so check first
+            if hasattr(i, a):
+                g = getattr(i, a)
+                if isinstance(g, set):
+                    s.update(g)
+                else:
+                    raise ValueError('Attribute %s of set element %s was %s, not a set' % (a, repr(i), repr(g)))
             else:
-                raise ValueError('Attribute %s of set element %s was %s, not a set' % (a, i, repr(g)))
+                raise ValueError('Set element %s did not have attribute %s' % (repr(i), a))
         return s
 
 class TemplatableEntity:
@@ -65,20 +69,25 @@ class TemplatableEntity:
     def rel(self, o):
         allPreds = self.op.get(o, {})
         logging.debug("%s is related to %s by %s" % (self, o, repr(allPreds)))
-        parentPreds = TemplatableSet()
-        for p in allPreds:
-            parentPreds.add(p.walk('rdfs_subClassOf'))
-        logging.debug("%s are superclasses, removing" % parentPreds)
+        #parentPreds = TemplatableSet()
+        #    parentPreds.add(p.walk('rdfs_subClassOf'))
+        #logging.debug("%s are superclasses, removing" % parentPreds)
         return allPreds
 
     def add(self, p, o):
-        logging.debug("%s: adding relation %s %s" % (self, p, repr(o)))
-        if p not in self.po:
-            self.po[p] = TemplatableSet()
-        self.po[p].add(o)
-        if o not in self.op:
-            self.op[o] = TemplatableSet()
-        self.op[o].add(p)
+        if not (isinstance(o, TemplatableEntity) or isinstance(o, rdflib.Literal)):
+            raise ValueError("Object must be TemplatableEntity or Literal, not %s %s" % (o.__class__.__name__, o))
+        if not isinstance(p, TemplatableEntity):
+            raise ValueError("Predicate must be TemplatableEntity, not %s %s" % (p.__class__.__name__, p))
+
+        if p.safe not in self.po:
+            self.po[p.safe] = TemplatableSet()
+        self.po[p.safe].add(o)
+
+        if not isinstance(o, rdflib.Literal):
+            if o.safe not in self.op:
+                self.op[o.safe] = TemplatableSet()
+            self.op[o.safe].add(p)
 
     def url(self, eType=None):
         # FIXME shoudl this be here
@@ -114,10 +123,9 @@ class TemplatableEntity:
             r += " + %s %s\n" % (p, j)
         return r+">\n"
 
-class TemplatablePredicate:
+class TemplatablePredicate(TemplatableEntity):
     def __init__(self, p, safe):
-        self.id = p
-        self.safe = safe
+        TemplatableEntity.__init__(self, p, safe)
         self.so = {}
 
     def __str__(self):
@@ -126,16 +134,15 @@ class TemplatablePredicate:
     def __repr__(self):
         return "<Predicate %s (%s)>" % (self.id, self.safe)
 
-    def __hash__(self):
-        return hash(self.id)
+    def addso(self, s, o):
+        if not (isinstance(o, TemplatableEntity) or isinstance(o, rdflib.Literal)):
+            raise ValueError("Must add TemplatableEntity or Literal to graph, not %s %s" % (o.__class__.__name__, o))
+        if not (isinstance(s, TemplatableEntity) or isinstance(s, rdflib.Literal)):
+            raise ValueError("Must add TemplatableEntity or Literal to graph, not %s %s" % (s.__class__.__name__, s))
 
-    def __eq__(self, other):
-        return self.__hash__() == other.__hash__()
-
-    def add(self, s, o):
-        if s not in self.so:
-            self.so[s] = TemplatableSet()
-        self.so[s].add(o)
+        if s.safe not in self.so:
+            self.so[s.safe] = TemplatableSet()
+        self.so[s.safe].add(o)
 
 class TemplatableGraph:
     def __init__(self, g=None):
@@ -148,31 +155,32 @@ class TemplatableGraph:
         self.predicates = {}
         self.inv_predicates = {}
 
+        # Get predicate information we'll need to build the graph
         for s, p, o in g:
             if p == RDF['type'] and o == OWL['SymmetricProperty']:
                 self.addPredicate(s, s)
             elif p == OWL['inverseOf']:
                 self.addPredicate(s, o)
 
+        # Add in the actual graph
         for s, p, o in g:
             self.add(s, p, o)
 
         inferredTriples = []
+
         # Add inferred predicates
         for s, p, o in g:
             sp = self.safePath(p)
 
             if sp in self.entities:
-                for pp in self.entities[sp].walk('rdfs_subClassOf'):
-                    logging.debug("Predicate %s implies %s" % (p, pp))
+                supers = self.entities[sp].walk('rdfs_subClassOf')
+                for pp in supers:
                     inferredTriples.append((s, pp.id, o))
 
         # Add inferred types
         for s in self.entities.values():
             for t in s.po.get('rdf_type',[]):
                 for tt in self.entities[t.safe].walk('rdfs_subClassOf'):
-                    logging.debug("Type %s implies %s" % (t, tt))
-                    logging.debug("%s %s %s" % (repr(s), repr(self.predicates['rdf_type'].id), repr(tt)))
                     inferredTriples.append((s.id, self.predicates['rdf_type'].id, tt.id))
 
         for s, p, o in inferredTriples:
@@ -207,20 +215,26 @@ class TemplatableGraph:
         ss, sp, so = self.safePath(s), self.safePath(p), self.safePath(o)
         if ss not in self.entities:
             self.entities[ss] = TemplatableEntity(s, ss)
-        s = self.entities[ss]
+        tes = self.entities[ss]
+
         if sp not in self.predicates:
             self.predicates[sp] = TemplatablePredicate(p, sp)
-        p = self.predicates[sp]
+        tep = self.predicates[sp]
         if sp not in self.inv_predicates:
-            tempinv = TemplatablePredicate('inv_'+p.id, 'inv_'+p.safe)
+            tempinv = TemplatablePredicate('inv_'+tep.id, 'inv_'+tep.safe)
             self.inv_predicates[sp] = tempinv
-            self.inv_predicates[tempinv.safe] = p
+            self.inv_predicates[tempinv.safe] = tep
+        teip = self.inv_predicates[sp]
 
         if isinstance(o,rdflib.Literal):
-            s.add(sp, o)
+            tes.add(tep, o)
+            tep.addso(tes, o)
         else:
             if so not in self.entities:
                 self.entities[so] = TemplatableEntity(o, so)
-            o = self.entities[so]
-            o.add(self.inv_predicates[sp].safe,s)
-            s.add(sp, o)
+            teo = self.entities[so]
+
+            teo.add(teip, tes)
+            tes.add(tep, teo)
+            tep.addso(tes, teo)
+            teip.addso(teo, tes) 

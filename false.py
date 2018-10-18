@@ -15,13 +15,22 @@ FALSE_URL_BASE = os.environ["FALSE_URL_BASE"]
 FALSE_OUT = os.environ["FALSE_OUT"]
 FALSE_TEMPLATES = os.environ["FALSE_TEMPLATES"]
 
-IPFS_CLIENT = ipfsapi.connect('127.0.0.1',5001)
+try:
+    IPFS_CLIENT = ipfsapi.connect('127.0.0.1',5001)
+except ipfsapi.exceptions.ConnectionError:
+    logging.warn("No IPFS daemon running.")
+    IPFS_CLIENT = None
+
 FILE_TYPES = { ".html": "text/html", ".txt": "text/plain", ".md": "text/markdown" }
 F = rdflib.Namespace("http://www.colourcountry.net/false/model/")
 IPFS = rdflib.Namespace("/ipfs/")
 
 
 def addRendition(g, doc_id, blob, **properties):
+    if not IPFS_CLIENT:
+        logging.warn("No IPFS, can't add rendition info to document %s" % doc_id)
+        return None
+
     r = IPFS_CLIENT.add_bytes(blob)
     blob_id = IPFS[r]
     g.add((blob_id, RDF.type, F['Media']))
