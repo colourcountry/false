@@ -2,8 +2,8 @@
 
 import rdflib, re, os, urllib.parse, logging
 
-from rdflib.namespace import RDF, OWL
-CC = rdflib.Namespace("http://www.colourcountry.net/thing/")
+from rdflib.namespace import RDF, OWL, SKOS
+F = rdflib.Namespace("http://www.colourcountry.net/false/model/")
 
 # FIXME
 FALSE_URL_BASE = os.environ["FALSE_URL_BASE"]
@@ -19,23 +19,28 @@ class TemplatableSet(set):
     def __str__(self):
         return ''.join(str(i) for i in self)
 
+    def __repr__(self):
+        return '<TS:'+','.join(repr(i) for i in self)+'>'
+
     def surround(self, pfx, sfx, ifx=''):
         return pfx+(sfx+ifx+pfx).join(str(i) for i in self)+sfx
 
     def __getattr__(self, a):
         s = TemplatableSet()
         for i in self:
+            logging.debug("Looking for attribute %s on %s" % (a, repr(i)))
             g = getattr(i, a)
-            if not isinstance(g, set):
-                raise AttributeError('Attribute %s of element %s was not a set' % (a, i))
-            s.update(g)
+            if isinstance(g, set):
+                s.update(g)
+            else:
+                raise ValueError('Attribute %s of set element %s was %s, not a set' % (a, i, repr(g)))
         return s
 
 class TemplatableEntity:
     def __init__(self, s, safe):
         self.id = s
         self.safe = safe
-        self.po = {}
+        self.po = {'this': self}
         self.op = {}
 
     def __hash__(self):
@@ -46,7 +51,28 @@ class TemplatableEntity:
         # TemplatableEntity can == other types, but not the other way around.
         return self.__hash__() == other.__hash__()
 
+    def walk(self, p):
+        r = TemplatableSet()
+        if p not in self.po:
+            return r
+
+        for o in self.po[p]:
+            r.add(o)
+            r.update(o.walk(p))
+
+        return r
+
+    def rel(self, o):
+        allPreds = self.op.get(o, {})
+        logging.debug("%s is related to %s by %s" % (self, o, repr(allPreds)))
+        parentPreds = TemplatableSet()
+        for p in allPreds:
+            parentPreds.add(p.walk('rdfs_subClassOf'))
+        logging.debug("%s are superclasses, removing" % parentPreds)
+        return allPreds
+
     def add(self, p, o):
+        logging.debug("%s: adding relation %s %s" % (self, p, repr(o)))
         if p not in self.po:
             self.po[p] = TemplatableSet()
         self.po[p].add(o)
@@ -55,9 +81,14 @@ class TemplatableEntity:
         self.op[o].add(p)
 
     def url(self, eType=None):
+        # FIXME shoudl this be here
         if eType is None:
-            if CC['Document'] in self.rdf_type:
-                eType = CC['Document']
+            if F['Document'] in self.rdf_type:
+                eType = F['Document']
+            elif SKOS['Concept'] in self.rdf_type:
+                eType = SKOS['Concept']
+            else:
+                raise ValueError("Couldn't find a suitable type URL for %s" % repr(self))
 
         for sType in self.rdf_type:
             if sType == eType:
@@ -65,11 +96,10 @@ class TemplatableEntity:
 
         raise TypeError("Entity %s does not have requested type %s" % (self, eType))
 
-
     def __getattr__(self, a):
         if a in self.po:
             return self.po[a]
-        return set()
+        return TemplatableSet()
 
     def __str__(self):
         return self.id
@@ -77,7 +107,11 @@ class TemplatableEntity:
     def __repr__(self):
         r = "<Entity %s (%s) :=\n" % (self.id, self.safe)
         for p in self.po:
-            r += " + %s %s\n" % (p, ','.join(str(x) for x in self.po[p]))
+            if isinstance(self.po[p], set):
+                j = ','.join(str(x) for x in self.po[p])
+            else:
+                j = repr(self.po[p].id)
+            r += " + %s %s\n" % (p, j)
         return r+">\n"
 
 class TemplatablePredicate:
@@ -121,6 +155,27 @@ class TemplatableGraph:
                 self.addPredicate(s, o)
 
         for s, p, o in g:
+            self.add(s, p, o)
+
+        inferredTriples = []
+        # Add inferred predicates
+        for s, p, o in g:
+            sp = self.safePath(p)
+
+            if sp in self.entities:
+                for pp in self.entities[sp].walk('rdfs_subClassOf'):
+                    logging.debug("Predicate %s implies %s" % (p, pp))
+                    inferredTriples.append((s, pp.id, o))
+
+        # Add inferred types
+        for s in self.entities.values():
+            for t in s.po.get('rdf_type',[]):
+                for tt in self.entities[t.safe].walk('rdfs_subClassOf'):
+                    logging.debug("Type %s implies %s" % (t, tt))
+                    logging.debug("%s %s %s" % (repr(s), repr(self.predicates['rdf_type'].id), repr(tt)))
+                    inferredTriples.append((s.id, self.predicates['rdf_type'].id, tt.id))
+
+        for s, p, o in inferredTriples:
             self.add(s, p, o)
 
     def safePath(self, p):

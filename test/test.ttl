@@ -5,19 +5,19 @@
 @prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
 
 s:testmarkdown a f:Document
-;  m:featuredOn s:Site
+;  m:featuresOn s:Site
 ;  skos:prefLabel "Test document sourced from a markdown file"@en
 ;  m:published "2018-10-12T23:08:00.000+01:00"^^xsd:dateTime
 .
 
 s:test a f:Document
-;  m:featuredOn s:Site
+;  m:featuresOn s:Site
 ;  skos:prefLabel "Test HTML document"@en
 ;  m:published "2018-10-15T23:08:00.000+01:00"^^xsd:dateTime
 .
 
 s:testinlinemarkdown a f:Document
-;  m:featuredOn s:Site
+;  m:featuresOn s:Site
 ;  skos:prefLabel "Test document sourced from inline markdown"@en
 ;  m:published "2018-10-15T1:08:00.000+01:00"^^xsd:dateTime
 ;  m:markdown """

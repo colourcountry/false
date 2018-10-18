@@ -28,8 +28,8 @@ m:updated a owl:DatatypeProperty
 ;  rdfs:range xsd:dateTime
 .
 
-m:featuredOn a owl:ObjectProperty
-;  rdfs:label "is on"@en
+m:featuresOn a owl:ObjectProperty
+;  rdfs:label "features on"@en
 ;  rdfs:domain f:CreativeWork
 ;  rdfs:range m:Site
 ;  rdfs:subClassOf skos:broader
@@ -37,7 +37,7 @@ m:featuredOn a owl:ObjectProperty
 .
 
 m:features a owl:ObjectProperty
-;  rdfs:label "includes"@en
+;  rdfs:label "features"@en
 ;  rdfs:domain m:Site
 ;  rdfs:range f:CreativeWork
 ;  rdfs:subClassOf skos:narrower

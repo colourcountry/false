@@ -79,13 +79,21 @@ def buildGraph(g):
 def getDestPath(e, eType):
     return os.path.join(FALSE_OUT, eType.safe, e)
 
+
+
 def publish(g):
     md = markdown.Markdown()
     tg = TemplatableGraph(g)
 
     for e in tg.entities:
         logging.debug('Publishing %s' % e)
+
+        eTypes = set()
         for eType in tg.entities[e].rdf_type:
+            eTypes.update(eType.walk('rdfs_subClassOf'))
+
+        for eType in eTypes:
+            logging.debug("Rendering as type %s" % eType)
             try:
                 with open(os.path.join(FALSE_TEMPLATES,eType.safe),'r') as f:
                     t = jinja2.Template(f.read())
@@ -96,17 +104,19 @@ def publish(g):
             dest = getDestPath(e, eType)
             logging.info('Building %s %s' % (eType.safe, dest))
 
+            content = None
             for r in tg.entities[e].f_rendition:
                 mt = r.f_mediaType
                 enc = r.f_charset.pop()
 
                 if rdflib.Literal('text/markdown') in mt:
                     tg.add(tg.entities[e].id, F.html, rdflib.Literal(md.convert(IPFS_CLIENT.cat(r.id).decode(enc))))
-                    content = t.render(tg.entities[e].po)
                 elif rdflib.Literal('text/html') in mt:
-                    content = IPFS_CLIENT.cat(r.id).decode(enc)
+                    tg.add(tg.entities[e].id, F.html, rdflib.Literal(IPFS_CLIENT.cat(r.id).decode(enc)))
                 else:
-                    spo[s]['__html__'] = '<object type="%s" href="%s"></object>' % (str(mt.pop()), r)
+                    raise RuntimeError("No renderable media type for %s (%s)" % (e, mt))
+
+            content = t.render(tg.entities[e].po)
 
             try:
                 os.makedirs(os.path.dirname(dest), exist_ok=True)
