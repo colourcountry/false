@@ -4,7 +4,7 @@
     </head>
     <body>
         <h1>{{ skos_prefLabel }}</h1>
-        <h2>a {{ rdf_type.rdfs_label.surround('<span class="label">','</span>',',\n') }}</h2>
+        <h2>a {{ this.type().rdfs_label.surround('<span class="label">','</span>',',\n') }}</h2>
         <section>
             {% if skos_related %}
                 <h3>Related</h3>

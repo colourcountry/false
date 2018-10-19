@@ -94,24 +94,24 @@ def publish(g):
     md = markdown.Markdown()
     tg = TemplatableGraph(g)
 
+    logging.debug(repr(tg.entities["skos_broader"].rdfs_label))
+
     for e in tg.entities:
-        logging.debug('Publishing %s' % e)
 
         eTypes = set()
         for eType in tg.entities[e].rdf_type:
             eTypes.update(eType.walk('rdfs_subClassOf'))
 
         for eType in eTypes:
-            logging.debug("Rendering as type %s" % eType)
             try:
                 with open(os.path.join(FALSE_TEMPLATES,eType.safe),'r') as f:
                     t = jinja2.Template(f.read())
             except IOError as err:
-                logging.debug("No template for %s: %s" % (eType.safe, err))
+                logging.debug("No template for %s as %s" % (e, eType))
                 continue
 
             dest = getDestPath(e, eType)
-            logging.info('Building %s %s' % (eType.safe, dest))
+            logging.info('Rendering %s as %s -> %s' % (e, eType, dest))
 
             content = None
             for r in tg.entities[e].f_rendition:

@@ -25,6 +25,9 @@ class TemplatableSet(set):
     def surround(self, pfx, sfx, ifx=''):
         return pfx+(sfx+ifx+pfx).join(str(i) for i in self)+sfx
 
+    def difference(self, other):
+        return TemplatableSet(set.difference(self, other))
+
     def __getattr__(self, a):
         s = TemplatableSet()
         for i in self:
@@ -66,19 +69,24 @@ class TemplatableEntity:
 
         return r
 
+    def type(self):
+        parentTypes = TemplatableSet()
+        for t in self.rdf_type:
+            parentTypes.update(t.walk('rdfs_subClassOf'))
+        return self.rdf_type.difference(parentTypes)
+
     def rel(self, o):
-        allPreds = self.op.get(o, {})
-        logging.debug("%s is related to %s by %s" % (self, o, repr(allPreds)))
-        #parentPreds = TemplatableSet()
-        #    parentPreds.add(p.walk('rdfs_subClassOf'))
-        #logging.debug("%s are superclasses, removing" % parentPreds)
-        return allPreds
+        allPreds = self.op.get(o.safe, {})
+        parentPreds = TemplatableSet()
+        for p in allPreds:
+            parentPreds.update(p.walk('rdfs_subClassOf'))
+        return allPreds.difference(parentPreds)
 
     def add(self, p, o):
         if not (isinstance(o, TemplatableEntity) or isinstance(o, rdflib.Literal)):
             raise ValueError("Object must be TemplatableEntity or Literal, not %s %s" % (o.__class__.__name__, o))
-        if not isinstance(p, TemplatableEntity):
-            raise ValueError("Predicate must be TemplatableEntity, not %s %s" % (p.__class__.__name__, p))
+        if not isinstance(p, TemplatablePredicate):
+            raise ValueError("Predicate must be TemplatablePredicate, not %s %s" % (p.__class__.__name__, p))
 
         if p.safe not in self.po:
             self.po[p.safe] = TemplatableSet()
@@ -211,6 +219,9 @@ class TemplatableGraph:
         self.inv_predicates[sp] = self.predicates[sip]
         self.inv_predicates[sip] = self.predicates[sp]
 
+        assert sp not in self.entities
+        self.entities[sp] = self.predicates[sp]
+
     def add(self, s, p, o):
         ss, sp, so = self.safePath(s), self.safePath(p), self.safePath(o)
         if ss not in self.entities:
@@ -237,4 +248,4 @@ class TemplatableGraph:
             teo.add(teip, tes)
             tes.add(tep, teo)
             tep.addso(tes, teo)
-            teip.addso(teo, tes) 
+            teip.addso(teo, tes)
