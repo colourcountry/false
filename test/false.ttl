@@ -36,3 +36,49 @@ f:rendition a owl:DatatypeProperty
 ;  rdfs:domain f:Document
 ;  rdfs:range f:Media
 .
+
+f:Site a owl:Class
+;  rdfs:label "Web site"@en
+;  rdfs:subClassOf f:CreativeWork
+.
+
+f:description a owl:DatatypeProperty
+;  rdfs:label "description"@en
+;  rdfs:domain skos:Concept
+;  rdfs:range xsd:string
+.
+
+f:published a owl:DatatypeProperty
+;  rdfs:label "published"@en
+;  rdfs:domain f:Document
+;  rdfs:range xsd:dateTime
+.
+
+f:updated a owl:DatatypeProperty
+;  rdfs:label "updated"@en
+;  rdfs:domain skos:Concept
+;  rdfs:range xsd:dateTime
+.
+
+f:featuresOn a owl:ObjectProperty
+;  rdfs:label "features on"@en
+;  rdfs:domain f:CreativeWork
+;  rdfs:range f:Site
+;  rdfs:subClassOf skos:broader
+;  owl:inverseOf f:features
+.
+
+f:features a owl:ObjectProperty
+;  rdfs:label "features"@en
+;  rdfs:domain f:Site
+;  rdfs:range f:CreativeWork
+;  rdfs:subClassOf skos:narrower
+;  owl:inverseOf f:featuredOn
+.
+
+f:about a owl:ObjectProperty
+;  rdfs:label "about"@en
+;  rdfs:domain f:CreativeWork
+;  rdfs:range skos:Concept
+;  rdfs:subClassOf skos:related
+.

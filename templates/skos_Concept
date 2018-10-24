@@ -5,12 +5,13 @@
     <body>
         <h1>{{ skos_prefLabel }}</h1>
         <h2>a {{ this.type().rdfs_label.surround('<span class="label">','</span>',',\n') }}</h2>
+        <p>rendered as skos_Concept</p>
         <section>
             {% if skos_related %}
                 <h3>Related</h3>
                 <ul>
                     {% for item in skos_related %}
-                        <li>{{ this.rel(item).rdfs_label }} <a href="{{ item.url() }}">{{ item.skos_prefLabel }}</a></li>
+                        <li>{{ this.rel(item).rdfs_label }} <a href="{{ item.f_url }}">{{ item.skos_prefLabel }}</a></li>
                     {% endfor %}
                 </ul>
             {% endif %}
@@ -18,7 +19,7 @@
                 <h3>Broader</h3>
                 <ul>
                     {% for item in skos_broader %}
-                        <li>{{ this.rel(item).rdfs_label }} <a href="{{ item.url() }}">{{ item.skos_prefLabel }}</a></li>
+                        <li>{{ this.rel(item).rdfs_label }} <a href="{{ item.f_url }}">{{ item.skos_prefLabel }}</a></li>
                     {% endfor %}
                 </ul>
             {% endif %}
@@ -26,7 +27,7 @@
                 <h3>Narrower</h3>
                 <ul>
                     {% for item in skos_narrower %}
-                        <li>{{ this.rel(item).rdfs_label }} <a href="{{ item.url() }}">{{ item.skos_prefLabel }}</a></li>
+                        <li>{{ this.rel(item).rdfs_label }} <a href="{{ item.f_url }}">{{ item.skos_prefLabel }}</a></li>
                     {% endfor %}
                 </ul>
             {% endif %}

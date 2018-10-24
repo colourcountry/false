@@ -1,26 +1,25 @@
 @prefix s: <http://www.colourcountry.net/id/site/> .
 @prefix f: <http://www.colourcountry.net/false/model/> .
-@prefix m: <http://www.colourcountry.net/id/model/> .
 @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
 @prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
 
 s:testmarkdown a f:Document
-;  m:featuresOn s:Site
+;  f:featuresOn s:Site
 ;  skos:prefLabel "Test document sourced from a markdown file"@en
-;  m:published "2018-10-12T23:08:00.000+01:00"^^xsd:dateTime
+;  f:published "2018-10-12T23:08:00.000+01:00"^^xsd:dateTime
 .
 
 s:test a f:Document
-;  m:featuresOn s:Site
+;  f:featuresOn s:Site
 ;  skos:prefLabel "Test HTML document"@en
-;  m:published "2018-10-15T23:08:00.000+01:00"^^xsd:dateTime
+;  f:published "2018-10-15T23:08:00.000+01:00"^^xsd:dateTime
 .
 
 s:testinlinemarkdown a f:Document
-;  m:featuresOn s:Site
+;  f:featuresOn s:Site
 ;  skos:prefLabel "Test document sourced from inline markdown"@en
-;  m:published "2018-10-15T1:08:00.000+01:00"^^xsd:dateTime
-;  m:markdown """
+;  f:published "2018-10-15T1:08:00.000+01:00"^^xsd:dateTime
+;  f:markdown """
 # Test Markdown support in FALSE
 
 This should be converted into something flashier.

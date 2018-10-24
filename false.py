@@ -36,7 +36,7 @@ def addRendition(g, doc_id, blob, **properties):
     g.add((blob_id, RDF.type, F['Media']))
     for k, v in properties.items():
         g.add((blob_id, F[k], v))
-    g.add((doc_id, F['rendition'], blob_id))
+    g.add((doc_id, F.rendition, blob_id))
     return blob_id
 
 
@@ -85,8 +85,11 @@ def buildGraph(g):
                 logging.warn("Couldn't open %s" % fn)
     return gg
 
-def getDestPath(e, eType):
-    return os.path.join(FALSE_OUT, eType.safe, e)
+def getDestPath(e, eType, fileType='html'):
+    return os.path.join(FALSE_OUT, eType.safe, e+'.'+fileType)
+
+def getDestURL(e, eType, fileType='html'):
+    return '%s/%s/%s' % (FALSE_URL_BASE, eType.safe, e+'.'+fileType)
 
 
 
@@ -94,47 +97,66 @@ def publish(g):
     md = markdown.Markdown()
     tg = TemplatableGraph(g)
 
-    logging.debug(repr(tg.entities["skos_broader"].rdfs_label))
+    stage = {}
 
     for e in tg.entities:
 
-        eTypes = set()
-        for eType in tg.entities[e].rdf_type:
-            eTypes.update(eType.walk('rdfs_subClassOf'))
+        # use the most direct type because we need to go up in a specific order
+        # FIXME: provide ordered walk functions on entities?
+        eTypes = tg.entities[e].type()
 
-        for eType in eTypes:
-            try:
-                with open(os.path.join(FALSE_TEMPLATES,eType.safe),'r') as f:
-                    t = jinja2.Template(f.read())
-            except IOError as err:
-                logging.debug("No template for %s as %s" % (e, eType))
-                continue
+        while eTypes:
+            for eType in eTypes:
+                try:
+                    with open(os.path.join(FALSE_TEMPLATES,eType.safe),'r') as f:
+                        t = jinja2.Template(f.read())
+                except IOError as err:
+                    logging.debug("%s: no template %s" % (e, eType.safe))
+                    continue
 
-            dest = getDestPath(e, eType)
-            logging.info('Rendering %s as %s -> %s' % (e, eType, dest))
+                dest = getDestPath(e, eType)
+                url = getDestURL(e, eType)
 
-            content = None
-            for r in tg.entities[e].f_rendition:
-                mt = r.f_mediaType
-                enc = r.f_charset.pop()
+                logging.info('%s: will render as %s -> %s' % (e, eType, dest))
+                stage[dest] = (t, e)
+                eTypes = None # found a renderable type
 
-                if rdflib.Literal('text/markdown') in mt:
-                    tg.add(tg.entities[e].id, F.html, rdflib.Literal(md.convert(IPFS_CLIENT.cat(r.id).decode(enc))))
-                elif rdflib.Literal('text/html') in mt:
-                    tg.add(tg.entities[e].id, F.html, rdflib.Literal(IPFS_CLIENT.cat(r.id).decode(enc)))
-                else:
-                    raise RuntimeError("No renderable media type for %s (%s)" % (e, mt))
+                # add triples for the template to pick up
+                tg.add(tg.entities[e].id, F.url, rdflib.Literal(url))
 
-            content = t.render(tg.entities[e].po)
+                for r in tg.entities[e].f_rendition:
+                    mt = r.f_mediaType
+                    enc = r.f_charset.pop()
+                    logging.info('%s: found %s rendition' % (e, mt))
 
-            try:
-                os.makedirs(os.path.dirname(dest), exist_ok=True)
-                logging.warn("Writing %s" % dest)
-                with open(dest,'w') as f:
-                    f.write(content)
-            except IOError as e:
-                logging.warn("Couldn't write rendering for %s: %s" % (dest, e))
-                continue
+                    if rdflib.Literal('text/markdown') in mt:
+                        tg.add(tg.entities[e].id, F.html, rdflib.Literal(md.convert(IPFS_CLIENT.cat(r.id).decode(enc))))
+                    elif rdflib.Literal('text/html') in mt:
+                        tg.add(tg.entities[e].id, F.html, rdflib.Literal(IPFS_CLIENT.cat(r.id).decode(enc)))
+                    else:
+                        raise RuntimeError("No renderable media type for %s (%s)" % (e, mt))
+
+                break
+
+
+            if eTypes is not None:
+                # get the next layer of types
+                eTypes = eTypes.rdfs_subClassOf
+
+
+    logging.info("Stage is ready")
+
+    for dest in stage:
+        t, e = stage[dest]
+        content = t.render(tg.entities[e].po)
+
+        try:
+            os.makedirs(os.path.dirname(dest), exist_ok=True)
+            logging.info("%s: writing %s" % (e, dest))
+            with open(dest,'w') as f:
+                f.write(content)
+        except IOError as err:
+            logging.warn("%s: couldn't write %s: %s" % (e, dest, err))
 
 
 if __name__=="__main__":
@@ -142,6 +164,6 @@ if __name__=="__main__":
     for path, dirs, files in os.walk(FALSE_SRC):
       for f in files:
           if f.endswith('.ttl'):
-              print("Loading %s from %s" % (f,path))
+              logging.info("Loading %s from %s" % (f,path))
               g.load(os.path.join(path,f), format='ttl')
     publish(buildGraph(g))

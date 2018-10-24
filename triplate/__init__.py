@@ -5,10 +5,6 @@ import rdflib, re, os, urllib.parse, logging
 from rdflib.namespace import RDF, OWL, SKOS
 F = rdflib.Namespace("http://www.colourcountry.net/false/model/")
 
-# FIXME
-FALSE_URL_BASE = os.environ["FALSE_URL_BASE"]
-FALSE_OUT = os.environ["FALSE_OUT"]
-
 class TemplatableSet(set):
     '''This set can be referenced in templates.
     If there are multiple items in the set they are concatenated.
@@ -96,22 +92,6 @@ class TemplatableEntity:
             if o.safe not in self.op:
                 self.op[o.safe] = TemplatableSet()
             self.op[o.safe].add(p)
-
-    def url(self, eType=None):
-        # FIXME shoudl this be here
-        if eType is None:
-            if F['Document'] in self.rdf_type:
-                eType = F['Document']
-            elif SKOS['Concept'] in self.rdf_type:
-                eType = SKOS['Concept']
-            else:
-                raise ValueError("Couldn't find a suitable type URL for %s" % repr(self))
-
-        for sType in self.rdf_type:
-            if sType == eType:
-                return urllib.parse.urljoin(FALSE_URL_BASE, "/".join((FALSE_OUT, sType.safe, self.safe)))
-
-        raise TypeError("Entity %s does not have requested type %s" % (self, eType))
 
     def __getattr__(self, a):
         if a in self.po:

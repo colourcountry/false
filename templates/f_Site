@@ -5,14 +5,7 @@
     <body>
         <h1>{{ skos_prefLabel }}</h1>
         <h2>a {{ this.type().rdfs_label.surround('<span class="label">','</span>',',\n') }}</h2>
-        <p>
-           {% if f_published %} published on {{ f_published }}, {% endif %}
-           {% if f_updated %} updated {{ f_updated }}, {% endif %}
-           rendered as f_Document
-        </p>
-        <section>
-          {{ f_html }}
-        </section>
+        <p>rendered as f_Site</p>
         <section>
             {% if skos_related %}
                 <h3>Related</h3>
