@@ -6,19 +6,19 @@
 s:testmarkdown a f:Document
 ;  f:featuresOn s:Site
 ;  skos:prefLabel "Test document sourced from a markdown file"@en
-;  f:published "2018-10-12T23:08:00.000+01:00"^^xsd:dateTime
+;  f:updated "2018-10-12T23:08:00.000+01:00"^^xsd:dateTime
 .
 
 s:test a f:Document
 ;  f:featuresOn s:Site
 ;  skos:prefLabel "Test HTML document"@en
-;  f:published "2018-10-15T23:08:00.000+01:00"^^xsd:dateTime
+;  f:updated "2018-10-15T23:08:00.000+01:00"^^xsd:dateTime
 .
 
 s:testinlinemarkdown a f:Document
 ;  f:featuresOn s:Site
 ;  skos:prefLabel "Test document sourced from inline markdown"@en
-;  f:published "2018-10-15T1:08:00.000+01:00"^^xsd:dateTime
+;  f:updated "2018-10-15T1:08:00.000+01:00"^^xsd:dateTime
 ;  f:markdown """
 # Test Markdown support in FALSE
 
