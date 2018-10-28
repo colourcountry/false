@@ -15,6 +15,9 @@ FALSE_URL_BASE = os.environ["FALSE_URL_BASE"]
 FALSE_OUT = os.environ["FALSE_OUT"]
 FALSE_TEMPLATES = os.environ["FALSE_TEMPLATES"]
 
+class EmbedNotReady(Exception):
+    pass
+
 class MockIPFS:
     def __init__(self, file_base, url_base):
         self.base = os.path.join(file_base, 'blob')
@@ -45,7 +48,6 @@ except ipfsapi.exceptions.ConnectionError:
 FILE_TYPES = { ".html": "text/html", ".txt": "text/plain", ".md": "text/markdown" }
 F = rdflib.Namespace("http://www.colourcountry.net/false/model/")
 
-
 def addRendition(g, doc_id, blob, **properties):
     if not IPFS_CLIENT:
         logging.warn("No IPFS, can't add rendition info to document %s" % doc_id)
@@ -68,35 +70,35 @@ def buildGraph(g):
     gg.bind('owl', OWL)
     gg.bind('ipfs', '/ipfs/')
 
-    DOCS = {}
-    ENTS = {}
+    documents = {}
+    entities = {}
 
     for s, p, o in g:
-        if s not in ENTS:
-            ENTS[s] = s
+        if s not in entities:
+            entities[s] = s
         if p == RDF.type:
             if o == F['Document']:
-                ENTS[s] = F[os.path.basename(s)]
-                DOCS[s] = ENTS[s]
+                entities[s] = s
+                documents[s] = s
 
     for s, p, o in g:
-        if o in ENTS:
-            o = ENTS[o]
+        if o in entities:
+            o = entities[o]
 
         if p == F['markdown']:
-            blob_id = addRendition(gg, DOCS[s], o.encode('utf-8'),
+            blob_id = addRendition(gg, documents[s], o.encode('utf-8'),
                 mediaType=rdflib.Literal('text/markdown'),
                 charset=rdflib.Literal('utf-8')
             )
         else:
-            gg.add((ENTS[s], p, o))
+            gg.add((entities[s], p, o))
 
-    for s, doc_id in DOCS.items():
+    for s, doc_id in documents.items():
         for t, mime in FILE_TYPES.items():
             fn = os.path.basename(s+t)
             try:
                 o = open(os.path.join(FALSE_SRC,fn),'rb').read()
-                blob_id = addRendition(gg, DOCS[s], o,
+                blob_id = addRendition(gg, documents[s], o,
                     mediaType=rdflib.Literal(mime),
                     charset=rdflib.Literal('utf-8') # let's hope
                     )
@@ -112,10 +114,35 @@ def getDestURL(e, e_type, file_type='html'):
 
 
 
+def resolve_embed(m, tg, e_safe, in_p=False):
+    logging.debug("Resolving img embed %s" % (m.group(1)))
+    attrs = {}
+    for mm in re.finditer('(\S+)="([^"]*)"', m.group(1)):
+        attrs[mm.group(1)]=mm.group(2)
+
+    if "data-false-retain-img" in attrs:
+        logging.debug("Retained img %s" % (m.group(1)))
+        return m.group(0)
+
+    src = urllib.parse.urljoin(tg.entities[e_safe].id, attrs['src'])
+    ref_safe = tg.safePath(src)
+    if ref_safe in tg.entities:
+        logging.debug("Trying to embed known entity %s" % src)
+        if tg.entities[ref_safe].f_html:
+            logging.debug("Success!")
+            return str(tg.entities[ref_safe].f_html)
+        else:
+            logging.info("Couldn't embed, html is not ready")
+            raise EmbedNotReady
+
+    logging.debug("Don't know about img %s" % src)
+    return m.group(0)
+
 def publish(g):
-    md = markdown.Markdown()
+    md = markdown.Markdown(output_format="html5")
     tg = TemplatableGraph(g)
 
+    temp_html = {}
     stage = {}
 
     for e in tg.entities:
@@ -151,10 +178,10 @@ def publish(g):
                     enc = r.f_charset.pop()
                     logging.info('%s: found %s rendition' % (e, mt))
 
-                    if rdflib.Literal('text/markdown') in mt:
-                        tg.add(e_id, F.html, rdflib.Literal(md.convert(IPFS_CLIENT.cat(r.id).decode(enc))))
-                    elif rdflib.Literal('text/html') in mt:
-                        tg.add(e_id, F.html, rdflib.Literal(IPFS_CLIENT.cat(r.id).decode(enc)))
+                    if rdflib.Literal('text/html') in mt:
+                        temp_html[e] = IPFS_CLIENT.cat(r.id).decode(enc)
+                    elif rdflib.Literal('text/markdown') in mt:
+                        temp_html[e] = md.convert(IPFS_CLIENT.cat(r.id).decode(enc))
                     else:
                         raise RuntimeError("No renderable media type for %s (%s)" % (e, mt))
 
@@ -165,6 +192,26 @@ def publish(g):
                 # get the next layer of types
                 e_types = e_types.rdfs_subClassOf
 
+    logging.info("Graph is ready, inserting html")
+
+    while len(temp_html) > 0:
+        progress = set()
+        for e,html in temp_html.items():
+            try:
+                logging.debug("%s: resolving embeds" % tg.entities[e])
+                html = re.sub("<p>\s*<img([^>]*)>\s*</p>", lambda m: resolve_embed(m, tg, e, True), html)
+                html = re.sub("<img([^>]*)>", lambda m: resolve_embed(m, tg, e, False), html)
+                logging.debug("%s: all embeds resolved" % tg.entities[e])
+                tg.add(tg.entities[e].id, F.html, html)
+                progress.add(e)
+            except EmbedNotReady:
+                continue
+
+        if len(progress) == 0:
+            raise RuntimeError("Embed loop in %s" % ','.join(temp_html.keys()))
+
+        for e in progress:
+            del(temp_html[e])
 
     logging.info("Stage is ready")
 

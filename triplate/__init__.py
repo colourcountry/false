@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-import rdflib, re, os, urllib.parse, logging
+import rdflib, re, os, logging
 
 from rdflib.namespace import RDF, OWL, SKOS
 F = rdflib.Namespace("http://www.colourcountry.net/false/model/")
