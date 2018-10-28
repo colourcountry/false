@@ -1,7 +1,54 @@
 @prefix f: <http://www.colourcountry.net/false/model/> .
 @prefix s: <http://www.colourcountry.net/id/site/> .
 @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
 
 s:Site a f:Site
 ;  skos:prefLabel "My web site"@en
+.
+
+s:markdown a f:Document
+;  f:featuresOn s:Site
+;  skos:prefLabel "Using markdown"@en
+;  f:updated "2018-10-12T10:18:00.000Z"^^xsd:dateTime
+;  f:markdown
+"""
+You can define the document content in *Markdown*
+by defining `f:markdown` in the TTL
+
+![Embed images or other content like this](reusable)
+
+"""@en
+.
+
+s:renditions a f:Document
+;  f:featuresOn s:Site
+;  skos:prefLabel "Renditions"@en
+;  f:updated "2018-10-15T23:08:00.000+01:00"^^xsd:dateTime
+;  f:markdown
+"""
+A rendition is a representation of a document,
+for example as a media file.
+
+You are reading a rendition of this document
+sourced from inline markdown in the TTL.
+
+FALSE will look for additional renditions
+in files in the same directory that match the ID.
+
+This document's ID is `s:renditions` so FALSE will
+look for files beginning `renditions`:
+
+  * `renditions.md`
+  * `renditions.html`
+  * `renditions.mp4`
+  * `renditions.svg`
+
+and so on.
+
+Templates can access these using `{{ f_rendition }}`.
+
+FALSE will choose the rendition most suitable for presenting on a Web site
+and generate HTML code for it that can be included using `{{ f_html }}`.
+"""@en 
 .

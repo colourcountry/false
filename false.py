@@ -88,7 +88,6 @@ def buildGraph(g):
                 mediaType=rdflib.Literal('text/markdown'),
                 charset=rdflib.Literal('utf-8')
             )
-            del(DOCS[s]) # don't need to look for a file
         else:
             gg.add((ENTS[s], p, o))
 
