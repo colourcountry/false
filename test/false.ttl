@@ -19,6 +19,39 @@ f:Media a owl:Class
 ;  rdfs:subClassOf skos:Concept
 .
 
+f:Context a owl:Class
+;  rdfs:label "Context"@en
+;  rdfs:subClassOf skos:Concept
+.
+
+f:targetContext a owl:ObjectProperty
+;  rdfs:label "target context"@en
+;  rdfs:domain f:Media
+;  rdfs:range f:Context
+;  rdfs:subClassOf skos:related
+;  owl:inverseOf f:targetContextOf
+.
+
+f:targetContextOf a owl:ObjectProperty
+;  rdfs:label "target context of"@en
+;  rdfs:domain f:Media
+;  rdfs:range f:Context
+;  rdfs:subClassOf skos:related
+;  owl:inverseOf f:targetContext
+.
+
+f:pageContext a f:Context
+;  rdfs:label "Content on its own page"
+.
+
+f:embedContext a f:Context
+;  rdfs:label "Embedded content within a document page"
+.
+
+f:teaserContext a f:Context
+;  rdfs:label "Preview of content for teasers and promotion"
+.
+
 f:mediaType a owl:DatatypeProperty
 ;  rdfs:label "media type"@en
 ;  rdfs:domain f:Media

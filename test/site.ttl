@@ -16,7 +16,9 @@ s:markdown a f:Document
 You can define the document content in *Markdown*
 by defining `f:markdown` in the TTL
 
-![Embed images or other content like this](reusable)
+![To embed an image which is represented as a Document, use its relative URL.](lingshed)
+
+![You can embed any Document in this way.](reusable)
 
 Note: Prefixes like `s:` don't work within document content, so `s:reusable` won't be understood in a link.
 But you _can_ use relative URLs like plain `reusable`.

@@ -1,0 +1,11 @@
+@prefix f: <http://www.colourcountry.net/false/model/> .
+@prefix s: <http://www.colourcountry.net/id/site/> .
+@prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+
+s:lingshed a f:Document
+;  f:featuresOn s:Site
+;  skos:prefLabel "Photo of Lingshed Gonpa"@en
+;  f:description "Lingshed Gonpa seen from below. Two solar furnaces and a goat kid are visible on a terrace outside."
+;  f:updated "2018-10-30T13:14:00.000Z"^^xsd:dateTime
+.
