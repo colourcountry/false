@@ -5,18 +5,23 @@
 @prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
 
 f:CreativeWork a owl:Class
-;  rdfs:label "Article"@en
+;  rdfs:label "CreativeWork"@en
 ;  rdfs:subClassOf skos:Concept
+.
+
+f:Content a owl:Class
+;  rdfs:label "Content"@en
+;  rdfs:subClassOf f:CreativeWork
 .
 
 f:Document a owl:Class
 ;  rdfs:label "Document"@en
-;  rdfs:subClassOf f:CreativeWork
+;  rdfs:subClassOf f:Content
 .
 
 f:Picture a owl:Class
 ;  rdfs:label "Picture"@en
-;  rdfs:subClassOf f:Document
+;  rdfs:subClassOf f:Content
 .
 
 f:Media a owl:Class
@@ -77,7 +82,7 @@ f:rendition a owl:DatatypeProperty
 
 f:Site a owl:Class
 ;  rdfs:label "Web site"@en
-;  rdfs:subClassOf f:CreativeWork
+;  rdfs:subClassOf f:Content
 .
 
 f:description a owl:DatatypeProperty
@@ -112,6 +117,22 @@ f:features a owl:ObjectProperty
 ;  rdfs:range f:CreativeWork
 ;  rdfs:subClassOf skos:narrower
 ;  owl:inverseOf f:featuredOn
+.
+
+f:usedIn a owl:ObjectProperty
+;  rdfs:label "used in"@en
+;  rdfs:domain f:CreativeWork
+;  rdfs:range f:CreativeWork
+;  rdfs:subClassOf skos:broader
+;  owl:inverseOf f:uses
+.
+
+f:uses a owl:ObjectProperty
+;  rdfs:label "uses"@en
+;  rdfs:domain f:CreativeWork
+;  rdfs:range f:CreativeWork
+;  rdfs:subClassOf skos:narrower
+;  owl:inverseOf f:usedIn
 .
 
 f:about a owl:ObjectProperty

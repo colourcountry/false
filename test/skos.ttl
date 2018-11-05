@@ -7,7 +7,7 @@ skos:Concept a owl:Class
 .
 
 skos:related a owl:ObjectProperty, owl:SymmetricProperty
-;  rdfs:label "has related"@en
+;  rdfs:label "related to"@en
 .
 
 skos:narrower a owl:ObjectProperty

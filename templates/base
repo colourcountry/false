@@ -8,6 +8,6 @@
     <body>
         {% block headline %}{% endblock %}
         {% block content %}{% endblock %}
-        {% block links %}{% endblock %}
+        <div id="links">{% block links %}{% endblock %}</div>
     </body>
 </html>

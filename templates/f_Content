@@ -3,6 +3,7 @@
 {% block headline %}
         <h1>{{ skos_prefLabel }}</h1>
         <h2>a {{ this.type().rdfs_label.surround('<span class="label">','</span>',',\n') }}</h2>
+        <h3>presented as Content</h3>
         {% if f_description %}
         <p>
             {{ f_description }}
@@ -11,7 +12,6 @@
         <p>
             {% if f_published %} published on {{ f_published }}, {% endif %}
             {% if f_updated %} updated {{ f_updated }}, {% endif %}
-            rendered as f_Document
         </p>
 {% endblock %}
 
@@ -21,19 +21,21 @@
                 {{ item }}
             </section>
         {% endfor %}
-        <section id="renditions">
+        {% if f_rendition %}
+            <section id="renditions">
                 {#
                     Renditions must always be available locally or over IPFS,
                     as they are binary representations (i.e. static)
                     Anything served from a remote URL is a Document, not a Media.
                     Hence, we can use the ID directly as a relative URL.
                 #}
-            <p>
-                Download
-                {% for item in f_rendition %}
-                    <a href="{{ item.id }}">{{ item.f_mediaType }}</a>
-                {% endfor %}
-            </p>
-        </section>
+                <p>
+                    Download
+                    {% for item in f_rendition %}
+                        <a href="{{ item.id }}">{{ item.f_mediaType }}</a>
+                    {% endfor %}
+                </p>
+            </section>
+        {% endif %}
 {% endblock %}
 

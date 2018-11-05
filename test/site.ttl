@@ -1,38 +1,52 @@
+@prefix : <http://www.colourcountry.net/id/site/> .
 @prefix f: <http://www.colourcountry.net/false/model/> .
-@prefix s: <http://www.colourcountry.net/id/site/> .
 @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
 @prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
 
-s:Site a f:Site
-;  skos:prefLabel "My web site"@en
+:Site a f:Site
+;  skos:prefLabel "FALSE demo site"@en
+;  f:markdown 
+"""
+![](http://www.colourcountry.net/id/site/whatisfalse)
+
+Find out more using the *narrower* links.
+"""
 .
 
-s:markdown a f:Document
-;  f:featuresOn s:Site
+:whatisfalse a f:Document
+;  skos:prefLabel "What is FALSE?"@en
+.
+
+:markdown a f:Document
+;  f:featuresOn :Site
 ;  skos:prefLabel "Using markdown"@en
 ;  f:updated "2018-10-12T10:18:00.000Z"^^xsd:dateTime
 ;  f:markdown
 """
-You can define the document content in *Markdown*
-by defining `f:markdown` in the TTL
+You can define the document content in Markdown
+by defining `f:markdown` in the TTL.
 
-To embed an image which is represented as a Document, use its relative URL:
+FALSE doesn't work with files directly, so images work differently from standard Markdown.
+To embed an image, define it as a Content (or a sub-type, like Picture) then use its ID:
 
-`![](filename)`
+`![](http://whatever.site/id/filename)`
 
-![](lingshed)
+![](http://www.colourcountry.net/id/site/lingshed)
 
-You can embed any Document in this way.
+Documents written in Markdown can embed any Content item in this way.
 
-![](reusable)
+![](http://www.colourcountry.net/id/site/reusable)
 
-Note: Prefixes like `s:` don't work within document content, so `s:reusable` won't be understood in a link.
-But you _can_ use relative URLs like plain `reusable`.
+(to do: allow relative paths somehow)
 """@en
 .
 
-s:renditions a f:Document
-;  f:featuresOn s:Site
+:reusable a f:Document
+;  skos:prefLabel "Reusable content"@en
+.
+
+:renditions a f:Document
+;  f:featuresOn :Site
 ;  skos:prefLabel "Renditions"@en
 ;  f:updated "2018-10-15T23:08:00.000+01:00"^^xsd:dateTime
 ;  f:markdown
@@ -46,7 +60,7 @@ sourced from inline markdown in the TTL.
 FALSE will look for additional renditions
 in files in the same directory that match the ID.
 
-This document's ID is `s:renditions` so FALSE will
+This document's ID is `renditions` so FALSE will
 look for files beginning `renditions`:
 
   * `renditions.md`
@@ -63,5 +77,3 @@ and generate HTML code for it that can be included using `{{ f_html }}`.
 """@en 
 .
 
-s:reusable a f:Document
-.

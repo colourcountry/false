@@ -4,7 +4,7 @@
 {% block headline %}
     <h1>{{ skos_prefLabel }}</h1>
     <h2>a {{ this.type().rdfs_label.surround('<span class="label">','</span>',',\n') }}</h2>
-    <p>rendered as skos_Concept</p>
+    <h3>presented as Concept</h3>
 {% endblock %}
 
 {% block links %}
@@ -12,7 +12,7 @@
                 <h3>This</h3>
                 <ul>
                     {% for item in skos_exactMatch %}
-                        <li>{{ this.rel(item).rdfs_label }} <a href="{{ item.f_url }}">{{ item.prefLabel }}</a></li>
+                        <li>{{ this.rel(item).rdfs_label }} <a href="{{ item.f_url }}">{{ item.skos_prefLabel }}</a></li>
                     {% endfor %}
                 </ul>
             {% endif %}
