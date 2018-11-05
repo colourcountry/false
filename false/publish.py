@@ -8,6 +8,10 @@ import jinja2, markdown
 import pprint
 from triplate import *
 
+EXTERNAL_LINKS = {
+  "http://www.wikidata.org/wiki/\\1": re.compile("http://www.wikidata.org/entity/(.*)")
+}
+
 class EmbedNotReady(Exception):
     pass
 
@@ -60,7 +64,12 @@ def get_embed_html_for_rendition(tg, e, r, ipfs_client):
 
     for t in mt:
         if t.startswith('image/'):
-            return '<img data-final alt="%s" src="%s">' % (tg.entities[e].f_description, r.f_blob_url)
+            url = tg.entities[e].f_url
+            if url:
+                # FIXME: hard coded caption
+                return '<a href="%s"><img data-final title="%s" alt="%s" src="%s"></a>' % (url, "Image information available", tg.entities[e].f_description, r.f_blob_url)
+            else:
+                return '<img data-final alt="%s" src="%s">' % (tg.entities[e].f_description, r.f_blob_url)
 
     logging.debug("%s: media type %s can't be embedded" % (e, mt))
     return None
@@ -87,6 +96,8 @@ def get_embed_html(tg, e, ipfs_client):
 def publish(g, template_dir, output_dir, url_base, ipfs_client):
     tg = TemplatableGraph(g)
 
+    jinja_e = jinja2.Environment(loader=jinja2.FileSystemLoader('templates'))
+
     embed_html = {}
     stage = {}
 
@@ -97,11 +108,22 @@ def publish(g, template_dir, output_dir, url_base, ipfs_client):
         e_types = tg.entities[e].type()
         e_id = tg.entities[e].id
 
+        has_url = False
+        for match in tg.entities[e].skos_exactMatch:
+            for repl, pattern in EXTERNAL_LINKS.items():
+                logging.warn(match)
+                if pattern.match(str(match)):
+                    url = pattern.sub(repl, str(match))
+                    tg.add(e_id, F.url, rdflib.Literal(url))
+                    has_url = True
+
+        if has_url:
+            continue # don't need to render
+
         while e_types:
             for e_type in e_types:
                 try:
-                    with open(os.path.join(template_dir,e_type.safe),'r') as f:
-                        t = jinja2.Template(f.read())
+                    t = jinja_e.get_template(e_type.safe)
                 except IOError as err:
                     logging.debug("%s: no template %s" % (e, e_type.safe))
                     continue

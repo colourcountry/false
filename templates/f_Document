@@ -1,8 +1,6 @@
-<html>
-    <head>
-        <title>{{ skos_prefLabel }}</title>
-    </head>
-    <body>
+{% extends 'skos_Concept' %}
+
+{% block headline %}
         <h1>{{ skos_prefLabel }}</h1>
         <h2>a {{ this.type().rdfs_label.surround('<span class="label">','</span>',',\n') }}</h2>
         {% if f_description %}
@@ -15,57 +13,27 @@
             {% if f_updated %} updated {{ f_updated }}, {% endif %}
             rendered as f_Document
         </p>
-        <h2>HTML renditions</h2>
+{% endblock %}
+
+{% block content %}
         {% for item in f_html %}
             <section>
                 {{ item }}
             </section>
         {% endfor %}
-        <section>
-            <h2>All renditions</h2>
-            <ul>
-                <!--
+        <section id="renditions">
+                {#
                     Renditions must always be available locally or over IPFS,
                     as they are binary representations (i.e. static)
                     Anything served from a remote URL is a Document, not a Media.
                     Hence, we can use the ID directly as a relative URL.
-                -->
+                #}
+            <p>
+                Download
                 {% for item in f_rendition %}
-                    <li><a href="{{ item.id }}">{{ item.f_mediaType }}</a></li>
+                    <a href="{{ item.id }}">{{ item.f_mediaType }}</a>
                 {% endfor %}
-            </ul>
+            </p>
         </section>
-        <section>
-            {% if skos_related %}
-                <h3>Related</h3>
-                <ul>
-                    {% for item in skos_related %}
-                        <li>{{ this.rel(item).rdfs_label }} <a href="{{ item.f_url }}">{{ item.skos_prefLabel }}</a></li>
-                    {% endfor %}
-                </ul>
-            {% endif %}
-            {% if skos_broader %}
-                <h3>Broader</h3>
-                <ul>
-                    {% for item in skos_broader %}
-                        <li>{{ this.rel(item).rdfs_label }} <a href="{{ item.f_url }}">{{ item.skos_prefLabel }}</a></li>
-                    {% endfor %}
-                </ul>
-            {% endif %}
-            {% if skos_narrower %}
-                <h3>Narrower</h3>
-                <ul>
-                    {% for item in skos_narrower %}
-                        <li>{{ this.rel(item).rdfs_label }} <a href="{{ item.f_url }}">{{ item.skos_prefLabel }}</a></li>
-                    {% endfor %}
-                </ul>
-            {% endif %}
-            {% if inv_skos_related %}
-                <h3>Shouldn't happen</h3>
-                <ul>
-                    {{ inv_skos_related.surround('<li>','</li>','\n') }}
-                </ul>
-            {% endif %}
-        </section>
-    </body>
-</html>
+{% endblock %}
+

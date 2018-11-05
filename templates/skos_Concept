@@ -1,12 +1,21 @@
-<html>
-    <head>
-        <title>{{ skos_prefLabel }}</title>
-    </head>
-    <body>
-        <h1>{{ skos_prefLabel }}</h1>
-        <h2>a {{ this.type().rdfs_label.surround('<span class="label">','</span>',',\n') }}</h2>
-        <p>rendered as skos_Concept</p>
-        <section>
+{% extends "base" %}
+{% block title %}{{ skos_prefLabel }}{% endblock %}
+
+{% block headline %}
+    <h1>{{ skos_prefLabel }}</h1>
+    <h2>a {{ this.type().rdfs_label.surround('<span class="label">','</span>',',\n') }}</h2>
+    <p>rendered as skos_Concept</p>
+{% endblock %}
+
+{% block links %}
+            {% if skos_exactMatch %}
+                <h3>This</h3>
+                <ul>
+                    {% for item in skos_exactMatch %}
+                        <li>{{ this.rel(item).rdfs_label }} <a href="{{ item.f_url }}">{{ item.prefLabel }}</a></li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
             {% if skos_related %}
                 <h3>Related</h3>
                 <ul>
@@ -37,6 +46,4 @@
                     {{ inv_skos_related.surround('<li>','</li>','\n') }}
                 </ul>
             {% endif %}
-        </section>
-    </body>
-</html>
+{% endblock %}

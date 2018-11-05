@@ -23,6 +23,7 @@ def add_rendition(g, doc_id, blob, ipfs_client, ipfs_namespace, **properties):
     g.add((blob_id, F.blob_url, blob_id))
     for k, v in properties.items():
         g.add((blob_id, F[k], v))
+    logging.info("%s: adding rendition %s" % (doc_id, blob_id))
     g.add((doc_id, F.rendition, blob_id))
     return blob_id
 
@@ -35,6 +36,8 @@ def build_graph(g, ipfs_client, ipfs_namespace, source_dir):
     gg.bind('owl', OWL)
     gg.bind('ipfs', ipfs_namespace)
 
+    doc_types = [x[0] for x in g.query("""select ?t where { ?t rdfs:subClassOf+ f:Document }""")]
+
     documents = {}
     entities = {}
 
@@ -42,7 +45,8 @@ def build_graph(g, ipfs_client, ipfs_namespace, source_dir):
         if s not in entities:
             entities[s] = s
         if p == RDF.type:
-            if o == F.Document:
+            logging.warn("%s %s %s" % (list(doc_types), o, o in doc_types))
+            if o == F.Document or o in doc_types:
                 entities[s] = s
                 documents[s] = s
 
@@ -71,6 +75,6 @@ def build_graph(g, ipfs_client, ipfs_namespace, source_dir):
                     charset=rdflib.Literal('utf-8') # let's hope
                     )
             except IOError:
-                logging.warn("Couldn't open %s" % fn)
+                logging.warning("Couldn't open %s" % fn)
     return gg
 

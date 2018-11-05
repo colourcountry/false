@@ -14,6 +14,11 @@ f:Document a owl:Class
 ;  rdfs:subClassOf f:CreativeWork
 .
 
+f:Picture a owl:Class
+;  rdfs:label "Picture"@en
+;  rdfs:subClassOf f:Document
+.
+
 f:Media a owl:Class
 ;  rdfs:label "Media"@en
 ;  rdfs:subClassOf skos:Concept
@@ -66,7 +71,7 @@ f:charset a owl:DatatypeProperty
 
 f:rendition a owl:DatatypeProperty
 ;  rdfs:label "Rendition"@en
-;  rdfs:domain f:Document
+;  rdfs:domain f:CreativeWork
 ;  rdfs:range f:Media
 .
 
@@ -114,4 +119,11 @@ f:about a owl:ObjectProperty
 ;  rdfs:domain f:CreativeWork
 ;  rdfs:range skos:Concept
 ;  rdfs:subClassOf skos:related
+.
+
+f:pictureOf a owl:ObjectProperty
+;  rdfs:label "picture of"@en
+;  rdfs:domain f:Picture
+;  rdfs:range skos:Concept
+;  rdfs:subClassOf f:about
 .
