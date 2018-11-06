@@ -47,3 +47,8 @@
                 </ul>
             {% endif %}
 {% endblock %}
+
+{% block debug %}
+    <pre>{{ this.debug() }}</pre>
+{% endblock %}
+

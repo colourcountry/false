@@ -54,6 +54,9 @@ class TemplatableEntity:
         # TemplatableEntity can == other types, but not the other way around.
         return self.__hash__() == other.__hash__()
 
+    def debug(self):
+        return repr(self)
+
     def walk(self, p):
         r = TemplatableSet()
         if p not in self.po:
@@ -72,11 +75,14 @@ class TemplatableEntity:
         return self.rdf_type.difference(parentTypes)
 
     def rel(self, o):
-        allPreds = self.op.get(o.safe, {})
-        parentPreds = TemplatableSet()
-        for p in allPreds:
-            parentPreds.update(p.walk('rdfs_subClassOf'))
-        return allPreds.difference(parentPreds)
+        leaves = TemplatableSet(p for p in self.op.get(o.safe, []))
+        for p in self.op.get(o.safe, []):
+            parents = p.walk('rdfs_subClassOf')
+            for parent in parents:
+                leaves.discard(parent)
+            logging.debug("parents(%s %s) = %s" % (hash(p), p, parents))
+        logging.debug("leaves(%s) = %s" % (self, leaves))
+        return leaves
 
     def add(self, p, o):
         if not (isinstance(o, TemplatableEntity) or isinstance(o, rdflib.Literal)):
@@ -102,7 +108,7 @@ class TemplatableEntity:
         return self.id
 
     def __repr__(self):
-        r = "<Entity %s (%s) :=\n" % (self.id, self.safe)
+        r = "<Entity %s %s (%s) :=\n" % (self.id, hash(self), self.safe)
         for p in self.po:
             if isinstance(self.po[p], set):
                 j = ','.join(str(x) for x in self.po[p])
@@ -120,7 +126,14 @@ class TemplatablePredicate(TemplatableEntity):
         return self.id
 
     def __repr__(self):
-        return "<Predicate %s (%s)>" % (self.id, self.safe)
+        r = "<Predicate %s %s (%s) :=\n" % (self.id, hash(self), self.safe)
+        for p in self.po:
+            if isinstance(self.po[p], set):
+                j = ','.join(str(x) for x in self.po[p])
+            else:
+                j = repr(self.po[p].id)
+            r += " + %s %s\n" % (p, j)
+        return r+">\n"
 
     def addso(self, s, o):
         if not (isinstance(o, TemplatableEntity) or isinstance(o, rdflib.Literal)):
@@ -145,10 +158,19 @@ class TemplatableGraph:
 
         # Get predicate information we'll need to build the graph
         for s, p, o in g:
-            if p == RDF['type'] and o == OWL['SymmetricProperty']:
-                self.addPredicate(s, s)
+            # look for statements about predicates
+            if p == RDF['type']:
+                if o == OWL['SymmetricProperty']:
+                    self.addPredicate(s, s)
+                elif o == OWL['ObjectProperty'] or o == OWL['DatatypeProperty']:
+                    self.addPredicate(s)
             elif p == OWL['inverseOf']:
                 self.addPredicate(s, o)
+
+        for s, p, o in g:
+            self.addPredicate(p)
+
+        self.addInversePredicates()
 
         # Add in the actual graph
         for s, p, o in g:
@@ -188,19 +210,42 @@ class TemplatableGraph:
             return self.entities[a]
         raise AttributeError(a)
 
-    def addPredicate(self, p, ip):
-        logging.warn("Pre-loading predicate %s with inverse %s" % (p, ip))
-        sp, sip = self.safePath(p), self.safePath(ip)
-        self.predicates[sp] = TemplatablePredicate(p, sp)
+    def addPredicate(self, p, ip=None):
+        sp = self.safePath(p)
+
+        if sp in self.predicates:
+            if ip is None:
+                return # already know about it
+            if self.predicates[sp].id == p and self.inv_predicates.get(sp, None) == ip:
+                logging.info("Duplicate predicate definition for %s" % p)
+                return
+            if self.predicates[sp].id == ip and self.inv_predicates.get(sp, None) == p:
+                logging.info("Duplicate predicate definition for %s (inverse)" % p)
+                return
+
+                logging.warn("Re-registering predicate %s with inverse %s" % (p, ip))
+        else:
+            self.predicates[sp] = TemplatablePredicate(p, sp)
+            self.entities[sp] = self.predicates[sp]
+
+            logging.warn("Registering predicate %s with inverse %s" % (p, ip))
+
+        if ip is None:
+            return
+
+        sip = self.safePath(ip)
         if p == ip:
             self.predicates[sip] = self.predicates[sp]
         else:
             self.predicates[sip] = TemplatablePredicate(ip, sip)
+
         self.inv_predicates[sp] = self.predicates[sip]
         self.inv_predicates[sip] = self.predicates[sp]
 
-        assert sp not in self.entities
-        self.entities[sp] = self.predicates[sp]
+    def addInversePredicates(self):
+        for sp, p in list(self.predicates.items()):
+            if sp not in self.inv_predicates:
+                self.addPredicate(p.id, 'inv_'+p.id)
 
     def add(self, s, p, o):
         ss, sp, so = self.safePath(s), self.safePath(p), self.safePath(o)
@@ -211,10 +256,6 @@ class TemplatableGraph:
         if sp not in self.predicates:
             self.predicates[sp] = TemplatablePredicate(p, sp)
         tep = self.predicates[sp]
-        if sp not in self.inv_predicates:
-            tempinv = TemplatablePredicate('inv_'+tep.id, 'inv_'+tep.safe)
-            self.inv_predicates[sp] = tempinv
-            self.inv_predicates[tempinv.safe] = tep
         teip = self.inv_predicates[sp]
 
         if isinstance(o,rdflib.Literal):

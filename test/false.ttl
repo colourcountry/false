@@ -1,150 +1,174 @@
-@prefix f: <http://www.colourcountry.net/false/model/> .
+@prefix : <http://www.colourcountry.net/false/model/> .
 @prefix owl:   <http://www.w3.org/2002/07/owl#> .
 @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
 @prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
 
-f:CreativeWork a owl:Class
+:CreativeWork a owl:Class
 ;  rdfs:label "CreativeWork"@en
 ;  rdfs:subClassOf skos:Concept
 .
 
-f:Content a owl:Class
+:Content a owl:Class
 ;  rdfs:label "Content"@en
-;  rdfs:subClassOf f:CreativeWork
+;  rdfs:subClassOf :CreativeWork
 .
 
-f:Document a owl:Class
+:Document a owl:Class
 ;  rdfs:label "Document"@en
-;  rdfs:subClassOf f:Content
+;  rdfs:subClassOf :Content
 .
 
-f:Picture a owl:Class
+:Picture a owl:Class
 ;  rdfs:label "Picture"@en
-;  rdfs:subClassOf f:Content
+;  rdfs:subClassOf :Content
 .
 
-f:Media a owl:Class
+:Media a owl:Class
 ;  rdfs:label "Media"@en
 ;  rdfs:subClassOf skos:Concept
 .
 
-f:Context a owl:Class
+:Context a owl:Class
 ;  rdfs:label "Context"@en
 ;  rdfs:subClassOf skos:Concept
 .
 
-f:targetContext a owl:ObjectProperty
+:targetContext a owl:ObjectProperty
 ;  rdfs:label "target context"@en
-;  rdfs:domain f:Media
-;  rdfs:range f:Context
+;  rdfs:domain :Media
+;  rdfs:range :Context
 ;  rdfs:subClassOf skos:related
-;  owl:inverseOf f:targetContextOf
+;  owl:inverseOf :targetContextOf
 .
 
-f:targetContextOf a owl:ObjectProperty
+:targetContextOf a owl:ObjectProperty
 ;  rdfs:label "target context of"@en
-;  rdfs:domain f:Media
-;  rdfs:range f:Context
+;  rdfs:domain :Media
+;  rdfs:range :Context
 ;  rdfs:subClassOf skos:related
-;  owl:inverseOf f:targetContext
+;  owl:inverseOf :targetContext
 .
 
-f:pageContext a f:Context
+:pageContext a :Context
 ;  rdfs:label "Content on its own page"
 .
 
-f:embedContext a f:Context
+:embedContext a :Context
 ;  rdfs:label "Embedded content within a document page"
 .
 
-f:teaserContext a f:Context
+:teaserContext a :Context
 ;  rdfs:label "Preview of content for teasers and promotion"
 .
 
-f:mediaType a owl:DatatypeProperty
+:mediaType a owl:DatatypeProperty
 ;  rdfs:label "media type"@en
-;  rdfs:domain f:Media
+;  rdfs:domain :Media
 ;  rdfs:range xsd:string
 .
 
-f:charset a owl:DatatypeProperty
+:charset a owl:DatatypeProperty
 ;  rdfs:label "character set"@en
-;  rdfs:domain f:Media
+;  rdfs:domain :Media
 ;  rdfs:range xsd:string
 .
 
-f:rendition a owl:DatatypeProperty
+:blobURL a owl:DatatypeProperty
+;  rdfs:label "blob URL"@en
+;  rdfs:domain :Media
+;  rdfs:range xsd:anyURI
+.
+
+:rendition a owl:DatatypeProperty
 ;  rdfs:label "Rendition"@en
-;  rdfs:domain f:CreativeWork
-;  rdfs:range f:Media
+;  rdfs:domain :CreativeWork
+;  rdfs:range :Media
 .
 
-f:Site a owl:Class
+:Site a owl:Class
 ;  rdfs:label "Web site"@en
-;  rdfs:subClassOf f:Content
+;  rdfs:subClassOf :Content
 .
 
-f:description a owl:DatatypeProperty
+:description a owl:DatatypeProperty
 ;  rdfs:label "description"@en
 ;  rdfs:domain skos:Concept
 ;  rdfs:range xsd:string
 .
 
-f:published a owl:DatatypeProperty
+:markdown a owl:DatatypeProperty
+;  rdfs:label "markdown"@en
+;  rdfs:domain skos:Concept
+;  rdfs:range xsd:string
+.
+
+:html a owl:DatatypeProperty
+;  rdfs:label "HTML"@en
+;  rdfs:domain skos:Concept
+;  rdfs:range xsd:string
+.
+
+:url a owl:DatatypeProperty
+;  rdfs:label "Web URL"@en
+;  rdfs:domain skos:Concept
+;  rdfs:range xsd:anyURI
+.
+
+:published a owl:DatatypeProperty
 ;  rdfs:label "published"@en
-;  rdfs:domain f:Document
+;  rdfs:domain :Document
 ;  rdfs:range xsd:dateTime
 .
 
-f:updated a owl:DatatypeProperty
+:updated a owl:DatatypeProperty
 ;  rdfs:label "updated"@en
 ;  rdfs:domain skos:Concept
 ;  rdfs:range xsd:dateTime
 .
 
-f:featuresOn a owl:ObjectProperty
+:featuresOn a owl:ObjectProperty
 ;  rdfs:label "features on"@en
-;  rdfs:domain f:CreativeWork
-;  rdfs:range f:Site
+;  rdfs:domain :CreativeWork
+;  rdfs:range :Site
 ;  rdfs:subClassOf skos:broader
-;  owl:inverseOf f:features
+;  owl:inverseOf :features
 .
 
-f:features a owl:ObjectProperty
+:features a owl:ObjectProperty
 ;  rdfs:label "features"@en
-;  rdfs:domain f:Site
-;  rdfs:range f:CreativeWork
+;  rdfs:domain :Site
+;  rdfs:range :CreativeWork
 ;  rdfs:subClassOf skos:narrower
-;  owl:inverseOf f:featuredOn
+;  owl:inverseOf :featuresOn
 .
 
-f:usedIn a owl:ObjectProperty
+:usedIn a owl:ObjectProperty
 ;  rdfs:label "used in"@en
-;  rdfs:domain f:CreativeWork
-;  rdfs:range f:CreativeWork
+;  rdfs:domain :CreativeWork
+;  rdfs:range :CreativeWork
 ;  rdfs:subClassOf skos:broader
-;  owl:inverseOf f:uses
+;  owl:inverseOf :uses
 .
 
-f:uses a owl:ObjectProperty
+:uses a owl:ObjectProperty
 ;  rdfs:label "uses"@en
-;  rdfs:domain f:CreativeWork
-;  rdfs:range f:CreativeWork
+;  rdfs:domain :CreativeWork
+;  rdfs:range :CreativeWork
 ;  rdfs:subClassOf skos:narrower
-;  owl:inverseOf f:usedIn
+;  owl:inverseOf :usedIn
 .
 
-f:about a owl:ObjectProperty
+:about a owl:ObjectProperty
 ;  rdfs:label "about"@en
-;  rdfs:domain f:CreativeWork
+;  rdfs:domain :CreativeWork
 ;  rdfs:range skos:Concept
 ;  rdfs:subClassOf skos:related
 .
 
-f:pictureOf a owl:ObjectProperty
+:pictureOf a owl:ObjectProperty
 ;  rdfs:label "picture of"@en
-;  rdfs:domain f:Picture
+;  rdfs:domain :Picture
 ;  rdfs:range skos:Concept
-;  rdfs:subClassOf f:about
+;  rdfs:subClassOf :about
 .

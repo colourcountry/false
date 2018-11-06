@@ -9,5 +9,6 @@
         {% block headline %}{% endblock %}
         {% block content %}{% endblock %}
         <div id="links">{% block links %}{% endblock %}</div>
+	<div id="debug">{% block debug %}{% endblock %}</div>
     </body>
 </html>

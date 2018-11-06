@@ -172,6 +172,8 @@ def publish(g, template_dir, output_dir, url_base, ipfs_client):
 
     logging.info("Stage is ready")
 
+    logging.debug(repr(tg.entities['f_pictureOf'].walk('rdfs_subClassOf')))
+
     for dest in stage:
         t, e = stage[dest]
         content = t.render(tg.entities[e].po)
@@ -180,6 +182,8 @@ def publish(g, template_dir, output_dir, url_base, ipfs_client):
         logging.info("%s: writing %s" % (e, dest))
         with open(dest,'w') as f:
             f.write(content)
+
+    logging.debug(repr(tg.entities['f_pictureOf'].walk('rdfs_subClassOf')))
 
 
 if __name__=="__main__":

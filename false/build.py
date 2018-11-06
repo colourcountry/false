@@ -33,7 +33,7 @@ def add_rendition(g, doc_id, blob, ipfs_client, ipfs_namespace, **properties):
     r = ipfs_client.add_bytes(blob)
     blob_id = ipfs_namespace[r]
     g.add((blob_id, RDF.type, F.Media))
-    g.add((blob_id, F.blob_url, blob_id))
+    g.add((blob_id, F.blobURL, blob_id))
     for k, v in properties.items():
         g.add((blob_id, F[k], v))
     logging.info("%s: adding rendition %s" % (doc_id, blob_id))
@@ -59,7 +59,6 @@ def build_graph(g, ipfs_client, ipfs_namespace, source_dir):
         if s not in entities:
             entities[s] = s
         if p == RDF.type:
-            logging.warn("%s %s %s" % (list(doc_types), o, o in doc_types))
             if o == F.Document or o in doc_types:
                 entities[s] = s
                 documents[s] = s
