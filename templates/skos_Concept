@@ -16,6 +16,14 @@
                     {% endfor %}
                 </ul>
             {% endif %}
+            {% if rdf_type %}
+                <h3>Type</h3>
+                <ul>
+                    {% for item in rdf_type %}
+                        <li><a href="{{ item.f_url }}">{{ item.rdfs_label }}</a></li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
             {% if skos_related %}
                 <h3>Related</h3>
                 <ul>
@@ -24,18 +32,18 @@
                     {% endfor %}
                 </ul>
             {% endif %}
-            {% if skos_broader %}
-                <h3>Broader</h3>
-                <ul>
-                    {% for item in skos_broader %}
-                        <li>{{ this.rel(item).rdfs_label }} <a href="{{ item.f_url }}">{{ item.skos_prefLabel }}</a></li>
-                    {% endfor %}
-                </ul>
-            {% endif %}
             {% if skos_narrower %}
                 <h3>Narrower</h3>
                 <ul>
                     {% for item in skos_narrower %}
+                        <li>{{ this.rel(item).rdfs_label }} <a href="{{ item.f_url }}">{{ item.skos_prefLabel }}</a></li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+            {% if skos_broader %}
+                <h3>Broader</h3>
+                <ul>
+                    {% for item in skos_broader %}
                         <li>{{ this.rel(item).rdfs_label }} <a href="{{ item.f_url }}">{{ item.skos_prefLabel }}</a></li>
                     {% endfor %}
                 </ul>

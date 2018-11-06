@@ -55,7 +55,7 @@ class TemplatableEntity:
         return self.__hash__() == other.__hash__()
 
     def debug(self):
-        return repr(self)
+        return repr(self).replace('&','&amp;').replace('<','&lt;')
 
     def walk(self, p):
         r = TemplatableSet()
