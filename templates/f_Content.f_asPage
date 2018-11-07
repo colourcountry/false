@@ -1,8 +1,8 @@
-{% extends 'skos_Concept' %}
+{% extends 'skos_Concept.f_asPage' %}
 
 {% block headline %}
         <h1>{{ skos_prefLabel }}</h1>
-        <h2>a {{ this.type().rdfs_label.surround('<span class="label">','</span>',',\n') }}</h2>
+        <h2>a <a href="{{ this.type().f_url }}">{{ this.type().rdfs_label }}</a></h2>
         <h3>presented as Content</h3>
         {% if f_description %}
         <p>
@@ -38,4 +38,3 @@
             </section>
         {% endif %}
 {% endblock %}
-

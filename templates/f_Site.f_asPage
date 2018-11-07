@@ -1,4 +1,4 @@
-{% extends "f_Content" %}
+{% extends "f_Content.f_asPage" %}
 
 {% block links %}
             {% if f_features %}

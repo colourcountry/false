@@ -1,9 +1,10 @@
 {% extends "base" %}
+
 {% block title %}{{ skos_prefLabel }}{% endblock %}
 
 {% block headline %}
     <h1>{{ skos_prefLabel }}</h1>
-    <h2>a {{ this.type().rdfs_label.surround('<span class="label">','</span>',',\n') }}</h2>
+    <h2>a <a href="{{ this.type().f_url }}">{{ this.type().rdfs_label }}</a></h2>
     <h3>presented as Concept</h3>
 {% endblock %}
 
@@ -13,14 +14,6 @@
                 <ul>
                     {% for item in skos_exactMatch %}
                         <li>{{ this.rel(item).rdfs_label }} <a href="{{ item.f_url }}">{{ item.skos_prefLabel }}</a></li>
-                    {% endfor %}
-                </ul>
-            {% endif %}
-            {% if rdf_type %}
-                <h3>Type</h3>
-                <ul>
-                    {% for item in rdf_type %}
-                        <li><a href="{{ item.f_url }}">{{ item.rdfs_label }}</a></li>
                     {% endfor %}
                 </ul>
             {% endif %}
@@ -59,4 +52,3 @@
 {% block debug %}
     <pre>{{ this.debug() }}</pre>
 {% endblock %}
-

@@ -1,15 +1,25 @@
 {% extends "base" %}
-{% block title %}{{ skos_prefLabel }}{% endblock %}
+
+{% set body_class = "ontology" %}
+{% block title %}{{ rdfs_label }}{% endblock %}
 
 {% block headline %}
-    <h1>{{ skos_prefLabel }}</h1>
-    <h2>a {{ this.type().rdfs_label.surround('<span class="label">','</span>',',\n') }}</h2>
-    <h3>presented as Concept</h3>
+    <h1>{{ rdfs_label }}</h1>
+    <h2>a Class</h2>
+    <p>{{ skos_scopeNote }}</p>
+    <h3>comprising</h3>
+    {% if f_typeOf %}
+    <ul>
+    {% for item in f_typeOf %}
+        <li><a href="{{ item.f_url }}">{{ item.skos_prefLabel }}</a></li>
+    {% endfor %}
+    </ul>
+    {% endif %}
 {% endblock %}
 
 {% block links %}
             {% if f_subClass %}
-                <h3>Subclasses</h3>
+                <h3>Narrower</h3>
                 <ul>
                     {% for item in f_subClass %}
                         <li><a href="{{ item.f_url }}">{{ item.rdfs_label }}</a></li>
@@ -17,7 +27,7 @@
                 </ul>
             {% endif %}
             {% if rdfs_subClassOf %}
-                <h3>Superclasses</h3>
+                <h3>Broader</h3>
                 <ul>
                     {% for item in rdfs_subClassOf %}
                         <li><a href="{{ item.f_url }}">{{ item.rdfs_label }}</a></li>
@@ -29,4 +39,3 @@
 {% block debug %}
     <pre>{{ this.debug() }}</pre>
 {% endblock %}
-

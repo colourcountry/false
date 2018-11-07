@@ -6,7 +6,7 @@ import os
 @route('/')
 def root():
     # FIXME: get the start page from the build process somehow
-    return redirect('/f_Site/lit_http___www_colourcountry_net_id_site_Site.html')
+    return redirect('/f_Site/f_asPage/lit_http___www_colourcountry_net_id_site_Site.html')
 
 @route('/<fn:path>')
 def serve(fn):

@@ -1,0 +1,8 @@
+{% for item in f_html %}
+    <section>
+        {{ item }}
+    </section>
+{% endfor %}
+{% for item in f_rendition %}
+    <a href="{{ item.id }}"><img src="{{ item.f_blobURL }}" alt="{{ item.f_description }}"></a>
+{% endfor %}

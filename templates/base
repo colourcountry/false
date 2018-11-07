@@ -2,10 +2,10 @@
 <html>
     <head>
         <title>{% block title %}{% endblock %}</title>
-        <link rel="stylesheet" type="text/css" href="../_static/base.css">
-	<link href="https://fonts.googleapis.com/css?family=Quicksand|Rubik+Mono+One|VT323" rel="stylesheet"> 
+        <link rel="stylesheet" type="text/css" href="../../_static/base.css">
+	<link href="https://fonts.googleapis.com/css?family=Quicksand|Rubik+Mono+One|VT323" rel="stylesheet">
     </head>
-    <body>
+    <body class="{{ body_class }}">
         {% block headline %}{% endblock %}
         {% block content %}{% endblock %}
         <div id="links">{% block links %}{% endblock %}</div>

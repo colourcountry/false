@@ -5,11 +5,13 @@
 
 :Site a f:Site
 ;  skos:prefLabel "FALSE demo site"@en
-;  f:markdown 
+;  f:markdown
 """
+This web site demonstrates all the features of FALSE.
+
 ![](http://www.colourcountry.net/id/site/whatisfalse)
 
-Find out more using the *narrower* links.
+Find out more using the "contents" menu.
 """
 .
 
@@ -26,16 +28,22 @@ Find out more using the *narrower* links.
 You can define the document content in Markdown
 by defining `f:markdown` in the TTL.
 
-FALSE doesn't work with files directly, so images work differently from standard Markdown.
-To embed an image, define it as a Content (or a sub-type, like Picture) then use its ID:
+Images and embeds are more powerful than standard Markdown.
+If you've defined an image as a Content (or a sub-type, like Picture), then you can embed it by its ID like this
 
-`![](http://whatever.site/id/filename)`
+`![](http://whatever.site/id)`
 
 ![](http://www.colourcountry.net/id/site/lingshed)
 
-Documents written in Markdown can embed any Content item in this way.
+This allows you to take advantage of all the linked data goodness of FALSE, like descriptions and metadata for the image.
+
+You can embed any Content item, for example documents written in Markdown.
 
 ![](http://www.colourcountry.net/id/site/reusable)
+
+If you just want to embed an image from the internet, you can still do that, but you don't get <s>a cookie</s> the extra features.
+
+![alt text](http://placekitten.com/150/150)
 
 (to do: allow relative paths somehow)
 """@en
@@ -74,6 +82,5 @@ Templates can access these using `{{ f_rendition }}`.
 
 FALSE will choose the rendition most suitable for presenting on a Web site
 and generate HTML code for it that can be included using `{{ f_html }}`.
-"""@en 
+"""@en
 .
-

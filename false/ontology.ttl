@@ -19,7 +19,7 @@
 :Content a owl:Class
 ;  rdfs:label "Content"@en
 ;  rdfs:subClassOf :CreativeWork
-;  skos:scopeNote "A work which takes the form of information which can be reproduced, especially on or as a Web site"@en
+;  skos:scopeNote "A work which can be rendered in two-dimensional visual form, especially on or as a Web site"@en
 .
 
 :Site a owl:Class
@@ -71,16 +71,16 @@
 ;  owl:inverseOf :targetContext
 .
 
-:pageContext a :Context
+:asPage a :Context
 ;  rdfs:label "Content on its own page"@en
 .
 
-:embedContext a :Context
+:asEmbed a :Context
 ;  rdfs:label "Embedded content within a document page"@en
 .
 
-:teaserContext a :Context
-;  rdfs:label "Preview of content for teasers and promotion"@en
+:asLink a :Context
+;  rdfs:label "Links to content"@en
 .
 
 :mediaType a owl:DatatypeProperty
@@ -159,20 +159,20 @@
 ;  owl:inverseOf :featuresOn
 .
 
-:usedIn a owl:ObjectProperty
-;  rdfs:label "used in"@en
+:includedIn a owl:ObjectProperty
+;  rdfs:label "included in"@en
 ;  rdfs:domain :CreativeWork
 ;  rdfs:range :CreativeWork
 ;  rdfs:subClassOf skos:broader
-;  owl:inverseOf :uses
+;  owl:inverseOf :includes
 .
 
-:uses a owl:ObjectProperty
-;  rdfs:label "uses"@en
+:includes a owl:ObjectProperty
+;  rdfs:label "includes"@en
 ;  rdfs:domain :CreativeWork
 ;  rdfs:range :CreativeWork
 ;  rdfs:subClassOf skos:narrower
-;  owl:inverseOf :usedIn
+;  owl:inverseOf :includedIn
 .
 
 :about a owl:ObjectProperty
@@ -193,3 +193,14 @@
 ;  owl:inverseOf rdfs:subClassOf
 .
 
+:typeOf a rdf:Property
+;  owl:inverseOf rdf:type
+.
+
+:domainOf a rdf:Property
+;  owl:inverseOf rdfs:domain
+.
+
+:rangeOf a rdf:Property
+;  owl:inverseOf rdfs:range
+.

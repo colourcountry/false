@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 import rdflib
-from rdflib.namespace import RDF, DC, SKOS, OWL
+from rdflib.namespace import RDF, RDFS, DC, SKOS, OWL
 import logging, os, re, datetime, markdown
 
 F = rdflib.Namespace("http://www.colourcountry.net/false/model/")
@@ -47,6 +47,8 @@ def build_graph(g, ipfs_client, ipfs_namespace, source_dir):
     gg.bind('dc', DC)
     gg.bind('skos', SKOS)
     gg.bind('owl', OWL)
+    gg.bind('rdf', RDF)
+    gg.bind('rdfs', RDFS)
     gg.bind('ipfs', ipfs_namespace)
 
     doc_types = [x[0] for x in g.query("""select ?t where { ?t rdfs:subClassOf+ f:Content }""")]
@@ -73,12 +75,20 @@ def build_graph(g, ipfs_client, ipfs_namespace, source_dir):
                 charset=rdflib.Literal('utf-8')
             )
 
-            find_markdown_embeds(mdproc, gg, documents[s], o)
+            html = mdproc.convert(o)
+            for url in mdproc.images:
+                uriref = rdflib.URIRef(url)
+                if uriref in documents:
+                    logging.debug("%s: found link to %s" % (documents[s], url))
+                    gg.add((documents[s], F.includes, uriref))
+                else:
+                    logging.warn("%s: found link to non-document %s %s" % (documents[s], url, documents))
+
         else:
             gg.add((entities[s], p, o))
 
     for s, doc_id in documents.items():
-        g.add((doc_id, F.published, rdflib.Literal(datetime.datetime.now().isoformat())))
+        gg.add((doc_id, F.published, rdflib.Literal(datetime.datetime.now().isoformat())))
 
         for t, mime in FILE_TYPES.items():
             fn = os.path.basename(s+t)
@@ -91,15 +101,16 @@ def build_graph(g, ipfs_client, ipfs_namespace, source_dir):
                     )
 
                 if mime == 'text/markdown':
-                    find_markdown_embeds(mdproc, gg, doc_id, blob.decode('utf-8'))
+                    html = mdproc.convert(blob.decode('utf-8'))
+                    for url in mdproc.images:
+                        uriref = rdflib.URIRef(url)
+                        if uriref in documents:
+                            logging.debug("%s: found link to %s" % (doc_id, url))
+                            gg.add((doc_id, F.includes, uriref))
+                        else:
+                            logging.warn("%s: found link to non-document %s %s" % (doc_id, url, documents))
 
             except IOError:
                 pass
 
     return gg
-
-def find_markdown_embeds(mdproc, g, doc_id, content):
-    html = mdproc.convert(content)
-    for url in mdproc.images:
-        logging.warn("%s: found link to %s" % (doc_id, url))
-        g.add((doc_id, F.uses, rdflib.URIRef(url)))

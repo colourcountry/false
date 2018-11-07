@@ -18,6 +18,7 @@ FALSE_TEMPLATES = os.environ["FALSE_TEMPLATES"]
 
 if __name__=="__main__":
     g = rdflib.Graph()
+    g.load(os.path.join(os.path.dirname(false.build.__file__),"ontology.ttl"), format='ttl')
     for path, dirs, files in os.walk(FALSE_SRC):
       for f in files:
           if f.endswith('.ttl'):

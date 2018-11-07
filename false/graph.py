@@ -80,8 +80,6 @@ class TemplatableEntity:
             parents = p.walk('rdfs_subClassOf')
             for parent in parents:
                 leaves.discard(parent)
-            logging.debug("parents(%s %s) = %s" % (hash(p), p, parents))
-        logging.debug("leaves(%s) = %s" % (self, leaves))
         return leaves
 
     def add(self, p, o):
@@ -157,6 +155,10 @@ class TemplatableGraph:
         self.inv_predicates = {}
 
         # Get predicate information we'll need to build the graph
+
+        # this one is an axiom
+        self.addPredicate(OWL['inverseOf'], OWL['inverseOf'])
+
         for s, p, o in g:
             # look for statements about predicates
             if p == RDF['type']:
@@ -217,30 +219,29 @@ class TemplatableGraph:
             if ip is None:
                 return # already know about it
             if self.predicates[sp].id == p and self.inv_predicates.get(sp, None) == ip:
-                logging.info("Duplicate predicate definition for %s" % p)
+                logging.debug("Duplicate predicate definition for %s" % p)
                 return
             if self.predicates[sp].id == ip and self.inv_predicates.get(sp, None) == p:
-                logging.info("Duplicate predicate definition for %s (inverse)" % p)
+                logging.debug("Duplicate predicate definition for %s (inverse)" % p)
                 return
 
-                logging.warn("Re-registering predicate %s with inverse %s" % (p, ip))
+            logging.warn("Re-registering predicate %s with inverse %s (was %s)" % (p, ip, self.inv_predicates.get(sp, None)))
         else:
             self.predicates[sp] = TemplatablePredicate(p, sp)
             self.entities[sp] = self.predicates[sp]
 
-            logging.warn("Registering predicate %s with inverse %s" % (p, ip))
+            logging.debug("Registering predicate %s with inverse %s" % (p, ip))
 
         if ip is None:
             return
 
         sip = self.safePath(ip)
-        if p == ip:
-            self.predicates[sip] = self.predicates[sp]
-        else:
-            self.predicates[sip] = TemplatablePredicate(ip, sip)
-
-        self.inv_predicates[sp] = self.predicates[sip]
         self.inv_predicates[sip] = self.predicates[sp]
+
+        if p != ip:
+            self.predicates[sip] = TemplatablePredicate(ip, sip)
+            self.entities[sip] = self.predicates[sip]
+            self.inv_predicates[sp] = self.predicates[sip]
 
     def addInversePredicates(self):
         for sp, p in list(self.predicates.items()):
