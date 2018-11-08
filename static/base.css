@@ -53,6 +53,10 @@ a, a:visited
 	text-decoration: underline blue double;
 }
 
+a.exactMatch {
+	color: blue;
+	text-decoration: none;
+}
 
 @media (min-width: 60em)
 {
@@ -78,7 +82,7 @@ code
 	font-family: 'VT323', monospace;
 }
 
-section img
+img
 {
 	max-width: 100%;
 }

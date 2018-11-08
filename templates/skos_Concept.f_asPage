@@ -4,18 +4,21 @@
 
 {% block headline %}
     <h1>{{ skos_prefLabel }}</h1>
-    <h2>a <a href="{{ this.type().f_url }}">{{ this.type().rdfs_label }}</a></h2>
+    <h2>a <a href="{{ this.type().f_url }}">{{ this.type().rdfs_label }}</a>
+    {% for item in skos_exactMatch %}
+        {% if item.id.startswith("http://www.wikidata.org/entity/") %}
+          <a class="exactMatch wikidata" href="{{ item.f_url }}" title="{{ item.id }}">&#x1f310;</a>
+        {% elif item.f_url %}
+          <a class="exactMatch" href="{{ item.f_url }}" title="{{ item.id }}">&#x1f875;</a>
+        {% endif %}
+    {% endfor %}
+    </h2>
     {% if skos_scopeNote %}
     <p>{{ skos_scopeNote }}</p>
     {% endif %}
-    {% if skos_exactMatch %}
-        <h3>This</h3>
-        <ul>
-            {% for item in skos_exactMatch %}
-                <li><a href="{{ item.f_url }}">{{ item.skos_prefLabel }}</a></li>
-            {% endfor %}
-        </ul>
-    {% endif %}
+    {% for item in f_depictedIn %}
+        <p><a href="{{ item.f_url }}">{{ item.f_html }}</a></p>
+    {% endfor %}
     {% if skos_closeMatch %}
         <h3>See also</h3>
         <ul>
@@ -32,7 +35,9 @@
                 <h3>Related</h3>
                 <ul>
                     {% for item in skos_related %}
-                        <li>{{ this.rel(item).rdfs_label }} <a href="{{ item.f_url }}">{{ item.skos_prefLabel }}</a></li>
+                        {% if f_depictedIn not in this.rels(item) %}
+                            <li>{{ this.rel(item).rdfs_label }} <a href="{{ item.f_url }}">{{ item.skos_prefLabel }}</a></li>
+                        {% endif %}
                     {% endfor %}
                 </ul>
             {% endif %}

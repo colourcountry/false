@@ -1,3 +1,1 @@
-{% for item in f_html %}
-    <a href="{{ f_url }}">{{ item }}</a>
-{% endfor %}
+<a href="{{ f_url }}">{{ f_html }}</a>

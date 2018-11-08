@@ -2,8 +2,9 @@
 <html>
     <head>
         <title>{% block title %}{% endblock %}</title>
-        <link rel="stylesheet" type="text/css" href="../../_static/base.css">
+        <link rel="stylesheet" type="text/css" href="../../static/base.css">
 	<link href="https://fonts.googleapis.com/css?family=Quicksand|Rubik+Mono+One|VT323" rel="stylesheet">
+        <script src="../../static/rewrite-ipfs-links.js"></script>
     </head>
     <body class="{{ body_class }}">
         {% block headline %}{% endblock %}

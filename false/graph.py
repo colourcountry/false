@@ -74,8 +74,11 @@ class TemplatableEntity:
             parentTypes.update(t.walk('rdfs_subClassOf'))
         return self.rdf_type.difference(parentTypes)
 
+    def rels(self, o):
+        return TemplatableSet(p for p in self.op.get(o.safe, []))
+
     def rel(self, o):
-        leaves = TemplatableSet(p for p in self.op.get(o.safe, []))
+        leaves = self.rels(o) 
         for p in self.op.get(o.safe, []):
             parents = p.walk('rdfs_subClassOf')
             for parent in parents:

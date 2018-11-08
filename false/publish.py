@@ -43,6 +43,13 @@ class EmbedNotReady(Exception):
 
 F = rdflib.Namespace("http://www.colourcountry.net/false/model/")
 
+def save_ipfs(ipfs_client, r, ipfs_dir):
+    cwd = os.getcwd()
+    os.makedirs(ipfs_dir, exist_ok=True)
+    os.chdir(ipfs_dir)
+    ipfs_client.get(r.id)
+    os.chdir(cwd)
+
 def get_page_path(e, ctx, e_type, output_dir, file_type='html'):
     return os.path.join(output_dir, e_type.safe, ctx, e+'.'+file_type)
 
@@ -60,7 +67,7 @@ def resolve_embed(m, tg, e, in_p=False):
 
     raise EmbedNotReady("Couldn't open file to embed: %s" % src)
 
-def get_html_body_for_rendition(tg, e, r, ipfs_client, markdown_processor):
+def get_html_body_for_rendition(tg, e, r, ipfs_client, markdown_processor, ipfs_dir):
     mt = r.f_mediaType
 
     if r.f_charset:
@@ -79,16 +86,17 @@ def get_html_body_for_rendition(tg, e, r, ipfs_client, markdown_processor):
 
     for m in mt:
         if m.startswith('image/'):
-            return '<img src="%s" alt="%s">' % (r.f_blobURL, e.f_description)
+            save_ipfs(ipfs_client, r, ipfs_dir)
+            return '<img data-src="%s" alt="%s">' % (r.f_blobURL, e.f_description)
 
     logging.debug("%s: media type %s is not a suitable body" % (e, mt))
     return None
 
-def get_html_body(tg, e, ipfs_client, markdown_processor):
+def get_html_body(tg, e, ipfs_client, markdown_processor, ipfs_dir):
     available = e.f_rendition
 
     for r in available:
-        eh = get_html_body_for_rendition(tg, e, r, ipfs_client, markdown_processor)
+        eh = get_html_body_for_rendition(tg, e, r, ipfs_client, markdown_processor, ipfs_dir)
         if eh:
             return eh
 
@@ -175,7 +183,7 @@ def publish(g, template_dir, output_dir, url_base, ipfs_client):
                         break
                     logging.debug("%s: %s looks good" % (e, ed))
                 else:
-                    body = get_html_body(tg, e, ipfs_client, markdown_processor)
+                    body = get_html_body(tg, e, ipfs_client, markdown_processor, os.path.join(output_dir, 'ipfs'))
 
                     body = re.sub("<p>\s*<false-embed([^>]*)>\s*</false-embed>\s*</p>", lambda m: resolve_embed(m, tg, e, True), body)
                     body = re.sub("<p>\s*<false-embed([^>]*)>\s*</p>", lambda m: resolve_embed(m, tg, e, True), body)

@@ -52,7 +52,6 @@
 
 :Media a owl:Class
 ;  rdfs:label "media"@en
-;  rdfs:subClassOf skos:Concept
 .
 
 :Context a owl:Class
