@@ -23,10 +23,9 @@ class ImgRewriter(markdown.treeprocessors.Treeprocessor):
             src_safe = self.tg.safePath(src)
             logging.debug("Found image with src %s" % src)
             if src_safe in self.tg.entities:
-                if self.tg.entities[src_safe].f_url:
-                    image.set('src', self.tg.entities[src_safe].f_url)
+                if self.tg.entities[src_safe].f_embedPath:
+                    image.set('src', self.tg.entities[src_safe].f_embedPath)
                     image.tag = 'false-embed'
-                    logging.debug("Found URL %s" % self.tg.entities[src_safe].f_url)
                 else:
                     pass # sometimes an image is just an image
 
@@ -50,25 +49,16 @@ def get_page_path(e, ctx, e_type, output_dir, file_type='html'):
 def get_page_url(e, ctx, e_type, url_base, file_type='html'):
     return '%s/%s/%s/%s' % (url_base, e_type.safe, ctx, e+'.'+file_type)
 
-def resolve_embed(m, tg, e_safe, in_p=False):
+def resolve_embed(m, tg, e, in_p=False):
     logging.debug("Resolving embed %s" % (m.group(1)))
     attrs = {}
     for mm in re.finditer('(\S+)="([^"]*)"', m.group(1)):
         attrs[mm.group(1)]=mm.group(2)
 
-    src = urllib.parse.urljoin(tg.entities[e_safe].id, attrs['src'])
-    ref_safe = tg.safePath(src)
-    if ref_safe in tg.entities:
-        logging.debug("Trying to embed known entity %s" % src)
-        if tg.entities[ref_safe].f_html:
-            logging.debug("Success!")
-            return str(tg.entities[ref_safe].f_html)
-        else:
-            logging.info("Couldn't embed, html is not ready")
-            raise EmbedNotReady
+    with open(attrs['src'],'r') as f:
+        return f.read()
 
-    logging.debug("Don't know about img %s" % src)
-    return m.group(0)
+    raise EmbedNotReady("Couldn't open file to embed: %s" % src)
 
 def get_html_body_for_rendition(tg, e, r, ipfs_client, markdown_processor):
     mt = r.f_mediaType
@@ -86,6 +76,10 @@ def get_html_body_for_rendition(tg, e, r, ipfs_client, markdown_processor):
 
     if rdflib.Literal('text/markdown') in mt:
         return markdown_processor.convert(ipfs_client.cat(r.id).decode(enc))
+
+    for m in mt:
+        if m.startswith('image/'):
+            return '<img src="%s" alt="%s">' % (r.f_blobURL, e.f_description)
 
     logging.debug("%s: media type %s is not a suitable body" % (e, mt))
     return None
@@ -115,18 +109,6 @@ def publish(g, template_dir, output_dir, url_base, ipfs_client):
     for e_safe, e in tg.entities.items():
         stage[e] = {}
 
-        has_url = False
-        for match in e.skos_exactMatch:
-            for repl, pattern in EXTERNAL_LINKS.items():
-                logging.warn(match)
-                if pattern.match(str(match)):
-                    url = pattern.sub(repl, str(match))
-                    tg.add(e.id, F.url, rdflib.Literal(url))
-                    has_url = True
-
-        if has_url:
-            continue # don't need to render
-
         for ctx in (F.asPage, F.asEmbed): # TODO enumerate contexts that are in use
 
             ctx_safe = tg.safePath(ctx)
@@ -147,41 +129,31 @@ def publish(g, template_dir, output_dir, url_base, ipfs_client):
 
                     logging.info('%s: will render for %s as %s -> %s' % (e, ctx, e_type, dest))
                     stage[e][ctx] = (t, dest)
-                    to_write.add(dest)
 
                     e_types = None # found a renderable type
 
-                    # add the computed URL of the item as a full page, for templates to pick up
                     if ctx == F.asPage:
-                        tg.add(e.id, F.url, rdflib.Literal(url))
+                        if e.f_url:
+                            # graph specified the URL, don't make one
+                            break
+                        elif F.Page in e.rdf_type:
+                            # object is a Web page whose ID is its URL
+                            tg.add(e.id, F.url, e.id)
+                            break
+                        else:
+                            # add the computed URL of the item as a full page, for templates to pick up
+                            tg.add(e.id, F.url, rdflib.Literal(url))
+                    elif ctx == F.asEmbed:
+                        # add the embed path, for the post-template stitcher to pick up
+                        tg.add(e.id, F.embedPath, rdflib.Literal(dest))
+
+                    to_write.add(dest)
+
                     break
 
                 if e_types is not None:
                     # get the next layer of types
                     e_types = e_types.rdfs_subClassOf
-
-    #for e in tg.entities:
-    #    eh = get_embed_html(tg, e, ipfs_client, markdown_processor)
-    #    if eh:
-    #        embed_html[e] = eh
-
-    #while len(embed_html) > 0:
-    #    progress = set()
-    #    for e,html in embed_html.items():
-    #        try:
-    #            html = re.sub("<p>\s*<false-embed([^>]*)>\s*</p>", lambda m: resolve_embed(m, tg, e, True), html)
-    #            html = re.sub("<false-embed([^>]*)>", lambda m: resolve_embed(m, tg, e, False), html)
-    #            logging.debug("%s: all embeds resolved" % tg.entities[e])
-    #            tg.add(tg.entities[e].id, F.html, html)
-    #            progress.add(e)
-    #        except EmbedNotReady:
-    #            continue
-
-    #    if len(progress) == 0:
-    #        raise RuntimeError("Embed loop in %s" % ','.join(embed_html.keys()))
-
-    #    for e in progress:
-    #        del(embed_html[e])
 
     logging.info("Stage is ready")
 
@@ -204,6 +176,12 @@ def publish(g, template_dir, output_dir, url_base, ipfs_client):
                     logging.debug("%s: %s looks good" % (e, ed))
                 else:
                     body = get_html_body(tg, e, ipfs_client, markdown_processor)
+
+                    body = re.sub("<p>\s*<false-embed([^>]*)>\s*</false-embed>\s*</p>", lambda m: resolve_embed(m, tg, e, True), body)
+                    body = re.sub("<p>\s*<false-embed([^>]*)>\s*</p>", lambda m: resolve_embed(m, tg, e, True), body)
+                    body = re.sub("<false-embed([^>]*)>\s*</false-embed>", lambda m: resolve_embed(m, tg, e, True), body)
+                    body = re.sub("<false-embed([^>]*)>", lambda m: resolve_embed(m, tg, e, False), body)
+
                     tg.add(e.id, F.html, rdflib.Literal(body))
 
                     content = t.render(e.po)

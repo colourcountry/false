@@ -7,11 +7,13 @@
     <h1>{{ rdfs_label }}</h1>
     <h2>a Class</h2>
     <p>{{ skos_scopeNote }}</p>
-    <h3>comprising</h3>
     {% if f_typeOf %}
+    <h3>comprising</h3>
     <ul>
     {% for item in f_typeOf %}
+        {% if item.skos_prefLabel %}
         <li><a href="{{ item.f_url }}">{{ item.skos_prefLabel }}</a></li>
+        {% endif %}
     {% endfor %}
     </ul>
     {% endif %}
@@ -36,6 +38,6 @@
             {% endif %}
 {% endblock %}
 
-{% block debug %}
+{# block debug
     <pre>{{ this.debug() }}</pre>
-{% endblock %}
+ endblock #}

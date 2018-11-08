@@ -1,18 +1,100 @@
-@prefix f: <http://www.colourcountry.net/false/model/> .
+@prefix : <http://www.colourcountry.net/false/model/> .
 @prefix s: <http://www.colourcountry.net/id/site/> .
-@prefix w: <http://www.colourcountry.net/id/world/> .
+@prefix owl:   <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
 @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
-@prefix wiki: <http://www.wikidata.org/entity/> .
 
-s:lingshed a f:Picture
+#  Let's define some content.
+
+s:lingshed a :Picture
 ;  skos:prefLabel "Photo of Lingshed Gonpa"@en
-;  f:description "Lingshed Gonpa seen from below. Two solar furnaces and a goat kid are visible on a terrace outside."
-;  f:updated "2018-10-30T13:14:00.000Z"^^xsd:dateTime
-;  f:pictureOf w:LingshedGonpa
+;  :description "Lingshed Gonpa seen from below. Two solar furnaces and a goat kid are visible on a terrace outside."
+;  :updated "2018-10-30T13:14:00.000Z"^^xsd:dateTime
 .
 
-w:LingshedGonpa a skos:Concept
+#  Now I'm going to link the content to the real world.
+#  The s: prefix was for things on this Web site, so I should make a new prefix for things in the real world.
+#  But this is still just my idea of the real world, so the IDs are still in my domain.
+
+@prefix w: <http://www.colourcountry.net/id/world/> .
+
+s:lingshed :depicts w:LingshedGonpa . # boom!
+
+#  Now we can get to defining some real world stuff.
+
+w:LingshedGonpa a w:Place
 ;  skos:prefLabel "Lingshed Gonpa"@en
-;  skos:exactMatch wiki:Q4254089
+;  skos:scopeNote "The large Buddhist monastery serving the community of Lingshed in Ladakh"
+;  w:locatedIn w:India
 .
+
+#  FALSE doesn't have opinions about the real world, so I need to teach it what some of that means.
+
+w:Place a owl:Class
+;  rdfs:label "Place"@en
+;  rdfs:subClassOf skos:Concept
+.
+
+w:locatedIn a owl:ObjectProperty
+;  rdfs:label "located in"@en
+;  rdfs:subClassOf skos:broader
+;  rdfs:domain w:Place
+;  rdfs:range w:Place
+.
+
+w:locates a owl:ObjectProperty
+;  rdfs:label "contains"@en # ("locates" is bad English but "contains" is ambiguous.)
+;  rdfs:subClassOf skos:narrower
+;  owl:inverseOf w:locatedIn
+.
+
+#  I can also link my real world things with other sources on the internet.
+
+@prefix wiki: <http://www.wikidata.org/entity/> .
+@prefix wikipage: <http://www.wikidata.org/wiki/> .
+@prefix wiki-en: <http://en.wikipedia.org/wiki/> .
+@prefix gmaps: <https://www.google.com/maps/search/?api=1&query=> .
+
+#  SKOS provides a bunch of properties to match up my idea of the world with other people's:
+
+w:LingshedGonpa skos:exactMatch wiki:Q4254089 .
+
+#  I can also say that web pages are about my real world things.
+
+wiki-en:Lingshed_Monastery :about w:LingshedGonpa .
+gmaps:Lingshed%20Gompa :about w:LingshedGonpa .
+
+#  If I stopped here, FALSE would create its own pages describing these web pages.
+#  I need to tell FALSE not to bother.
+
+gmaps:Lingshed%20Gompa a :Page
+#  This is just a Web page. I don't want to assert anything more than that, so the ID is the same as the URL.
+#  FALSE won't create a descriptive page for any :Page, but will link direct to the URL.
+#  But I can still say things about the page, like how it should be described in a link.
+;  skos:prefLabel "Lingshed Gonpa on Google Maps"
+.
+
+wiki-en:Lingshed_Monastery a :Page
+;  skos:prefLabel "Lingshed Gonpa on Wikipedia"
+.
+
+wiki:Q4254089 :url wikipage:Q4254089
+#  This is a real entity ID defined by Wikidata, not a Web page.
+#  But I don't want FALSE to create its own page for it, because Wikidata already has one.
+#  FALSE won't create a descriptive page for anything with a :url, but will link direct to the URL.
+#  (It happens that Wikidata has predictable URLs for all its entities, so I can define another prefix for the URL.)
+#  Note I haven't said what type it is. I could assert it is a w:Place but I don't have to.
+;  skos:prefLabel "Lingshed Gonpa on Wikidata"
+.
+
+#  OK let's do another one without all the comments.
+
+w:India a w:Place
+;  skos:prefLabel "India"@en
+;  skos:exactMatch wiki:Q668
+.
+
+gmaps:India a :Page ; :about w:India ; skos:prefLabel "India on Google Maps" .
+
+wiki:Q668 :url wikipage:Q668 ; skos:prefLabel "India on Wikidata" .

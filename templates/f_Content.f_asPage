@@ -3,7 +3,6 @@
 {% block headline %}
         <h1>{{ skos_prefLabel }}</h1>
         <h2>a <a href="{{ this.type().f_url }}">{{ this.type().rdfs_label }}</a></h2>
-        <h3>presented as Content</h3>
         {% if f_description %}
         <p>
             {{ f_description }}

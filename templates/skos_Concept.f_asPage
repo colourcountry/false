@@ -5,18 +5,29 @@
 {% block headline %}
     <h1>{{ skos_prefLabel }}</h1>
     <h2>a <a href="{{ this.type().f_url }}">{{ this.type().rdfs_label }}</a></h2>
-    <h3>presented as Concept</h3>
+    {% if skos_scopeNote %}
+    <p>{{ skos_scopeNote }}</p>
+    {% endif %}
+    {% if skos_exactMatch %}
+        <h3>This</h3>
+        <ul>
+            {% for item in skos_exactMatch %}
+                <li><a href="{{ item.f_url }}">{{ item.skos_prefLabel }}</a></li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+    {% if skos_closeMatch %}
+        <h3>See also</h3>
+        <ul>
+            {% for item in skos_closeMatch %}
+                <li><a href="{{ item.f_url }}">{{ item.skos_prefLabel }}</a></li>
+            {% endfor %}
+        </ul>
+    {% endif %}
 {% endblock %}
 
 {% block links %}
-            {% if skos_exactMatch %}
-                <h3>This</h3>
-                <ul>
-                    {% for item in skos_exactMatch %}
-                        <li>{{ this.rel(item).rdfs_label }} <a href="{{ item.f_url }}">{{ item.skos_prefLabel }}</a></li>
-                    {% endfor %}
-                </ul>
-            {% endif %}
+
             {% if skos_related %}
                 <h3>Related</h3>
                 <ul>
@@ -41,14 +52,8 @@
                     {% endfor %}
                 </ul>
             {% endif %}
-            {% if inv_skos_related %}
-                <h3>Shouldn't happen</h3>
-                <ul>
-                    {{ inv_skos_related.surround('<li>','</li>','\n') }}
-                </ul>
-            {% endif %}
 {% endblock %}
 
-{% block debug %}
+{# block debug
     <pre>{{ this.debug() }}</pre>
-{% endblock %}
+ endblock #}

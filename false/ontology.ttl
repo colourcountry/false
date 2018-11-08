@@ -6,18 +6,18 @@
 @prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
 
 :CreativeWork a owl:Class
-;  rdfs:label "CreativeWork"@en
+;  rdfs:label "creative work"@en
 ;  rdfs:subClassOf skos:Concept
 .
 
 :Project a owl:Class
-;  rdfs:label "Project"@en
+;  rdfs:label "project"@en
 ;  rdfs:subClassOf :CreativeWork
 ;  skos:scopeNote "A creative activity with an overall focus or intent"@en
 .
 
 :Content a owl:Class
-;  rdfs:label "Content"@en
+;  rdfs:label "content"@en
 ;  rdfs:subClassOf :CreativeWork
 ;  skos:scopeNote "A work which can be rendered in two-dimensional visual form, especially on or as a Web site"@en
 .
@@ -27,60 +27,49 @@
 ;  rdfs:subClassOf :Content
 .
 
+:Page a owl:Class
+;  rdfs:label "Web page"@en
+;  rdfs:subClassOf :Content
+.
+
 :Document a owl:Class
-;  rdfs:label "Document"@en
+;  rdfs:label "document"@en
 ;  rdfs:subClassOf :Content
 ;  skos:scopeNote "A work which is intended to be read. Normally text based but may also be made of images (cartoon, graphic novel...)"@en
 .
 
 :Picture a owl:Class
-;  rdfs:label "Picture"@en
+;  rdfs:label "picture"@en
 ;  rdfs:subClassOf :Content
 ;  skos:scopeNote "A work which is intended to be viewed, whose meaning does not rely on the way it changes through time."@en
 .
 
 :Video a owl:Class
-;  rdfs:label "Video"@en
+;  rdfs:label "video"@en
 ;  rdfs:subClassOf :Content
 ;  skos:scopeNote "A work which is intended to be watched."@en
 .
 
 :Media a owl:Class
-;  rdfs:label "Media"@en
+;  rdfs:label "media"@en
 ;  rdfs:subClassOf skos:Concept
 .
 
 :Context a owl:Class
-;  rdfs:label "Context"@en
+;  rdfs:label "context"@en
 ;  rdfs:subClassOf skos:Concept
 .
 
-:targetContext a owl:ObjectProperty
-;  rdfs:label "target context"@en
-;  rdfs:domain :Media
-;  rdfs:range :Context
-;  rdfs:subClassOf skos:related
-;  owl:inverseOf :targetContextOf
-.
-
-:targetContextOf a owl:ObjectProperty
-;  rdfs:label "target context of"@en
-;  rdfs:domain :Media
-;  rdfs:range :Context
-;  rdfs:subClassOf skos:related
-;  owl:inverseOf :targetContext
-.
-
 :asPage a :Context
-;  rdfs:label "Content on its own page"@en
+;  rdfs:label "page context"@en
 .
 
 :asEmbed a :Context
-;  rdfs:label "Embedded content within a document page"@en
+;  rdfs:label "embedded context"@en
 .
 
 :asLink a :Context
-;  rdfs:label "Links to content"@en
+;  rdfs:label "link context"@en
 .
 
 :mediaType a owl:DatatypeProperty
@@ -102,7 +91,7 @@
 .
 
 :rendition a owl:DatatypeProperty
-;  rdfs:label "Rendition"@en
+;  rdfs:label "rendition"@en
 ;  rdfs:domain :CreativeWork
 ;  rdfs:range :Media
 .
@@ -131,6 +120,13 @@
 ;  rdfs:range xsd:anyURI
 .
 
+:embedPath a owl:DatatypeProperty
+;  rdfs:label "FALSE internal embed path"@en
+;  rdfs:domain skos:Concept
+;  rdfs:range xsd:anyURI
+.
+
+
 :published a owl:DatatypeProperty
 ;  rdfs:label "published"@en
 ;  rdfs:domain :Document
@@ -143,28 +139,18 @@
 ;  rdfs:range xsd:dateTime
 .
 
-:featuresOn a owl:ObjectProperty
-;  rdfs:label "features on"@en
-;  rdfs:domain :CreativeWork
-;  rdfs:range :Site
-;  rdfs:subClassOf skos:broader
-;  owl:inverseOf :features
-.
 
 :features a owl:ObjectProperty
 ;  rdfs:label "features"@en
 ;  rdfs:domain :Site
 ;  rdfs:range :CreativeWork
 ;  rdfs:subClassOf skos:narrower
-;  owl:inverseOf :featuresOn
 .
 
-:includedIn a owl:ObjectProperty
-;  rdfs:label "included in"@en
-;  rdfs:domain :CreativeWork
-;  rdfs:range :CreativeWork
+:featuresOn a owl:ObjectProperty
+;  rdfs:label "features on"@en
 ;  rdfs:subClassOf skos:broader
-;  owl:inverseOf :includes
+;  owl:inverseOf :features
 .
 
 :includes a owl:ObjectProperty
@@ -172,7 +158,12 @@
 ;  rdfs:domain :CreativeWork
 ;  rdfs:range :CreativeWork
 ;  rdfs:subClassOf skos:narrower
-;  owl:inverseOf :includedIn
+.
+
+:includedIn a owl:ObjectProperty
+;  rdfs:label "included in"@en
+;  rdfs:subClassOf skos:broader
+;  owl:inverseOf :includes
 .
 
 :about a owl:ObjectProperty
@@ -182,11 +173,24 @@
 ;  rdfs:subClassOf skos:related
 .
 
-:pictureOf a owl:ObjectProperty
-;  rdfs:label "picture of"@en
+:hasAbout a owl:ObjectProperty
+;  rdfs:label ""@en # !
+;  rdfs:subClassOf skos:related
+;  owl:inverseOf :about
+;  rdfs:subClassOf skos:related
+.
+
+:depicts a owl:ObjectProperty
+;  rdfs:label "depicts"@en
 ;  rdfs:domain :Picture
 ;  rdfs:range skos:Concept
 ;  rdfs:subClassOf :about
+.
+
+:depictedIn a owl:ObjectProperty
+;  rdfs:label "depicted in"@en
+;  owl:inverseOf :depicts
+;  rdfs:subClassOf :hasAbout
 .
 
 :subClass a rdf:Property

@@ -36,8 +36,9 @@ If you've defined an image as a Content (or a sub-type, like Picture), then you 
 ![](http://www.colourcountry.net/id/site/lingshed)
 
 This allows you to take advantage of all the linked data goodness of FALSE, like descriptions and metadata for the image.
+You can investigate these by clicking on the image.
 
-You can embed any Content item, for example documents written in Markdown.
+You can embed any Content item, for example other documents written in Markdown.
 
 ![](http://www.colourcountry.net/id/site/reusable)
 
