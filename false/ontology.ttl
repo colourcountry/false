@@ -175,6 +175,19 @@
 ;  owl:inverseOf :includes
 .
 
+:links a owl:ObjectProperty
+;  rdfs:label "links to"@en
+;  rdfs:domain :CreativeWork
+;  rdfs:range :CreativeWork
+;  rdfs:subClassOf skos:related
+.
+
+:linkedFrom a owl:ObjectProperty
+;  rdfs:label "linked from"@en
+;  rdfs:subClassOf skos:related
+;  owl:inverseOf :links
+.
+
 :about a owl:ObjectProperty
 ;  rdfs:label "about"@en
 ;  rdfs:domain :CreativeWork

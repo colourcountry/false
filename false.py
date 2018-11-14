@@ -7,7 +7,6 @@ import sys, logging, os, re, urllib.parse, datetime
 import ipfsapi
 import jinja2, markdown
 import pprint
-from triplate import *
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -39,13 +38,11 @@ if __name__=="__main__":
 
     logging.info("** Building **")
 
-    final_graph = false.build.build_graph(g,
-        ipfs_client, ipfs_namespace,
-        FALSE_SRC)
+    final_graph = false.build.build_graph(g, ipfs_client, ipfs_namespace, FALSE_SRC, FALSE_ID_BASE)
 
     logging.info("** Publishing **")
 
-    home_page = false.publish.publish(final_graph, FALSE_TEMPLATES, FALSE_OUT, FALSE_URL_BASE, ipfs_client, FALSE_HOME_SITE)
+    home_page = false.publish.publish(final_graph, FALSE_TEMPLATES, FALSE_OUT, FALSE_URL_BASE, ipfs_client, FALSE_HOME_SITE, FALSE_ID_BASE)
 
     print(home_page)
 

@@ -12,14 +12,15 @@ EXTERNAL_LINKS = {
 }
 
 class ImgRewriter(markdown.treeprocessors.Treeprocessor):
-    def __init__(self, md, tg):
+    def __init__(self, md, tg, base):
         self.tg = tg
+        self.base = base
         super(ImgRewriter, self).__init__(md)
 
     def run(self, doc):
         "Find all images and append to markdown.images. "
         for image in doc.findall('.//img'):
-            src = image.get('src')
+            src = urllib.parse.urljoin(self.base, image.get('src'))
             src_safe = self.tg.safePath(src)
             logging.debug("Found image with src %s" % src)
             if src_safe in self.tg.entities:
@@ -29,17 +30,27 @@ class ImgRewriter(markdown.treeprocessors.Treeprocessor):
                 else:
                     pass # sometimes an image is just an image
 
+        for image in doc.findall('.//a'):
+            href = urllib.parse.urljoin(self.base, image.get('href'))
+            href_safe = self.tg.safePath(href)
+            logging.debug("Found link with href %s" % href)
+            if href_safe in self.tg.entities:
+                if self.tg.entities[href_safe].url:
+                    image.set('href', self.tg.entities[href_safe].url)
+                    if not image.text:
+                        image.text = str(self.tg.entities[href_safe].skos_prefLabel)
+                else:
+                    pass # sometimes an image is just an image
+
 class ImgRewriteExtension(markdown.extensions.Extension):
     def __init__(self, **kwargs):
-        self.config = {'tg' : ['This has to be a string for reasons', 'The templatablegraph to query for embedded items']}
+        self.config = {'tg' : ['This has to be a string for reasons', 'The templatablegraph to query for embedded items'],
+                       'base' : ['http://example.org/', 'The base URI to use when embedded content is specified as a relative URL']}
         super(ImgRewriteExtension, self).__init__(**kwargs)
 
     def extendMarkdown(self, md, md_globals):
-        img_rw = ImgRewriter(md, self.getConfig('tg'))
+        img_rw = ImgRewriter(md, self.getConfig('tg'), self.getConfig('base'))
         md.treeprocessors.add('imgrewrite', img_rw, '>inline')
-
-class EmbedNotReady(Exception):
-    pass
 
 F = rdflib.Namespace("http://www.colourcountry.net/false/model/")
 
@@ -64,8 +75,6 @@ def resolve_embed(m, tg, e, in_p=False):
 
     with open(attrs['src'],'r') as f:
         return f.read()
-
-    raise EmbedNotReady("Couldn't open file to embed: %s" % src)
 
 def get_html_body_for_rendition(tg, e, r, ipfs_client, markdown_processor, ipfs_dir):
     def get_charset(r, e, mt):
@@ -104,12 +113,12 @@ def get_html_body(tg, e, ipfs_client, markdown_processor, ipfs_dir):
     logging.debug("%s: no suitable body" % e)
     return '<!-- non-renderable item %s -->' % e
 
-def publish(g, template_dir, output_dir, url_base, ipfs_client, home_site):
+def publish(g, template_dir, output_dir, url_base, ipfs_client, home_site, id_base):
     tg = TemplatableGraph(g)
 
     jinja_e = jinja2.Environment(loader=jinja2.FileSystemLoader('templates'))
 
-    markdown_processor = markdown.Markdown(output_format="html5", extensions=[ImgRewriteExtension(tg=tg)])
+    markdown_processor = markdown.Markdown(output_format="html5", extensions=[ImgRewriteExtension(tg=tg, base=id_base)])
 
     embed_html = {}
     stage = {}
@@ -178,6 +187,7 @@ def publish(g, template_dir, output_dir, url_base, ipfs_client, home_site):
             for ctx in dests:
                 t, dest = dests[ctx]
 
+                logging.debug("%s: includes %s" % (e, e.includes))
                 for embed in e.includes:
                     if F.asEmbed in stage[embed]:
                         et, ed = stage[embed][F.asEmbed]

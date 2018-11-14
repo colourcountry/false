@@ -2,7 +2,7 @@
 
 import rdflib
 from rdflib.namespace import RDF, RDFS, DC, SKOS, OWL
-import logging, os, re, datetime, markdown
+import logging, os, re, datetime, markdown, urllib.parse
 
 F = rdflib.Namespace("http://www.colourcountry.net/false/model/")
 HTTP = rdflib.Namespace("http://")
@@ -17,15 +17,26 @@ FILE_TYPES = { ".html": "text/html",
 
 # h/t https://stackoverflow.com/questions/29259912/how-can-i-get-a-list-of-image-urls-from-a-markdown-file-in-python
 class ImgExtractor(markdown.treeprocessors.Treeprocessor):
+    def __init__(self, md, base):
+        self.base = base
+        super(ImgExtractor, self).__init__(md)
+
     def run(self, doc):
-        "Find all images and append to markdown.images. "
+        "Find all images and links and append to markdown.images. "
         self.markdown.images = []
+        self.markdown.links = []
         for image in doc.findall('.//img'):
-            self.markdown.images.append(image.get('src'))
+            self.markdown.images.append(urllib.parse.urljoin(self.base, image.get('src')))
+        for image in doc.findall('.//a'):
+            self.markdown.links.append(urllib.parse.urljoin(self.base, image.get('href')))
 
 class ImgExtExtension(markdown.extensions.Extension):
+    def __init__(self, **kwargs):
+        self.config = {'base' : ['http://example.org/', 'The base URI to use when embedded content is specified as a relative URL']}
+        super(ImgExtExtension, self).__init__(**kwargs)
+
     def extendMarkdown(self, md, md_globals):
-        img_ext = ImgExtractor(md)
+        img_ext = ImgExtractor(md, self.getConfig('base'))
         md.treeprocessors.add('imgext', img_ext, '>inline')
 
 def add_rendition(g, doc_id, blob, ipfs_client, ipfs_namespace, **properties):
@@ -45,7 +56,7 @@ def add_rendition(g, doc_id, blob, ipfs_client, ipfs_namespace, **properties):
     return blob_id
 
 
-def build_graph(g, ipfs_client, ipfs_namespace, source_dir):
+def build_graph(g, ipfs_client, ipfs_namespace, source_dir, id_base):
     gg = rdflib.Graph()
     gg.bind('', F)
     gg.bind('dc', DC)
@@ -61,7 +72,7 @@ def build_graph(g, ipfs_client, ipfs_namespace, source_dir):
 
     documents = {}
     entities = {}
-    mdproc = markdown.Markdown(extensions=[ImgExtExtension()])
+    mdproc = markdown.Markdown(extensions=[ImgExtExtension(base=id_base)])
 
     for s, p, o in g:
         if s not in entities:
@@ -85,8 +96,16 @@ def build_graph(g, ipfs_client, ipfs_namespace, source_dir):
             for url in mdproc.images:
                 uriref = rdflib.URIRef(url)
                 if uriref in documents:
-                    logging.debug("%s: found link to %s" % (documents[s], url))
+                    logging.debug("%s: found embed of %s" % (documents[s], url))
                     gg.add((documents[s], F.includes, uriref))
+                else:
+                    logging.info("%s: found embed of non-document %s" % (documents[s], url))
+
+            for url in mdproc.links:
+                uriref = rdflib.URIRef(url)
+                if uriref in documents:
+                    logging.debug("%s: found link to %s" % (documents[s], url))
+                    gg.add((documents[s], F.links, uriref))
                 else:
                     logging.info("%s: found link to non-document %s" % (documents[s], url))
 

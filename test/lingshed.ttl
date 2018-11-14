@@ -16,7 +16,7 @@
 #  I should make a new prefix for things in the real world.
 #  But this is still just my idea of the real world, so the IDs are still in my domain.
 
-@prefix w: <http://www.colourcountry.net/id/world/> .
+@prefix w: <http://id.colourcountry.net/world/> .
 
 <lingshed> :depicts w:LingshedGonpa . # boom!
 
