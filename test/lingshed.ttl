@@ -1,5 +1,4 @@
 @prefix : <http://www.colourcountry.net/false/model/> .
-@prefix s: <http://www.colourcountry.net/id/site/> .
 @prefix owl:   <http://www.w3.org/2002/07/owl#> .
 @prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
@@ -7,19 +6,19 @@
 
 #  Let's define some content.
 
-s:lingshed a :Picture
+<lingshed> a :Picture
 ;  skos:prefLabel "Photo of Lingshed Gonpa"@en
 ;  :description "Lingshed Gonpa seen from below. Two solar furnaces and a goat kid are visible on a terrace outside."
 ;  :updated "2018-10-30T13:14:00.000Z"^^xsd:dateTime
 .
 
 #  Now I'm going to link the content to the real world.
-#  The s: prefix was for things on this Web site, so I should make a new prefix for things in the real world.
+#  I should make a new prefix for things in the real world.
 #  But this is still just my idea of the real world, so the IDs are still in my domain.
 
 @prefix w: <http://www.colourcountry.net/id/world/> .
 
-s:lingshed :depicts w:LingshedGonpa . # boom!
+<lingshed> :depicts w:LingshedGonpa . # boom!
 
 #  Now we can get to defining some real world stuff.
 

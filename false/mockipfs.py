@@ -1,10 +1,11 @@
 #!/usr/bin/python3
 
-import os, uuid, rdflib, logging
+import os, uuid, rdflib, logging, shutil
 
 class MockIPFS:
     def __init__(self, file_base, url_base):
         self.base = os.path.join(file_base, 'blob')
+        logging.debug("Mock IPFS running at %s" % self.base)
         self.namespace = rdflib.Namespace("%s/%s/" % (url_base, 'blob'))
         os.makedirs(self.base, exist_ok=True)
 
@@ -19,3 +20,11 @@ class MockIPFS:
         logging.debug("Reading blob %s" % r)
         with open(os.path.join(self.base, r[-36:]), 'rb') as f:
             return f.read()
+
+    def get(self, r):
+        try:
+            shutil.copyfile(os.path.join(self.base, r[-36:]), os.path.abspath(r[-36:]))
+            logging.debug("Copying blob %s" % r)
+        except shutil.SameFileError:
+            logging.debug("Blob %s already available" % r)
+            pass

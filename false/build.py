@@ -5,6 +5,9 @@ from rdflib.namespace import RDF, RDFS, DC, SKOS, OWL
 import logging, os, re, datetime, markdown
 
 F = rdflib.Namespace("http://www.colourcountry.net/false/model/")
+HTTP = rdflib.Namespace("http://")
+HTTPS = rdflib.Namespace("https://")
+
 
 FILE_TYPES = { ".html": "text/html",
                ".txt": "text/plain",
@@ -27,7 +30,7 @@ class ImgExtExtension(markdown.extensions.Extension):
 
 def add_rendition(g, doc_id, blob, ipfs_client, ipfs_namespace, **properties):
     if not ipfs_client:
-        logging.warn("No IPFS, can't add rendition info to document %s" % doc_id)
+        logging.warning("No IPFS, can't add rendition info to document %s" % doc_id)
         return None
 
     r = ipfs_client.add_bytes(blob)
@@ -35,6 +38,7 @@ def add_rendition(g, doc_id, blob, ipfs_client, ipfs_namespace, **properties):
     g.add((blob_id, RDF.type, F.Media))
     g.add((blob_id, F.blobURL, blob_id))
     for k, v in properties.items():
+        logging.debug("%s: adding property %s=%s" % (doc_id, k, v))
         g.add((blob_id, F[k], v))
     logging.info("%s: adding rendition %s" % (doc_id, blob_id))
     g.add((doc_id, F.rendition, blob_id))
@@ -43,15 +47,17 @@ def add_rendition(g, doc_id, blob, ipfs_client, ipfs_namespace, **properties):
 
 def build_graph(g, ipfs_client, ipfs_namespace, source_dir):
     gg = rdflib.Graph()
-    gg.bind('f', F)
+    gg.bind('', F)
     gg.bind('dc', DC)
     gg.bind('skos', SKOS)
     gg.bind('owl', OWL)
     gg.bind('rdf', RDF)
     gg.bind('rdfs', RDFS)
     gg.bind('ipfs', ipfs_namespace)
+    gg.bind('http', HTTP) # this makes URLs look a bit nicer but it relies on namespace bindings being processed in this order
+    gg.bind('https', HTTPS)
 
-    doc_types = [x[0] for x in g.query("""select ?t where { ?t rdfs:subClassOf+ f:Content }""")]
+    doc_types = [x[0] for x in g.query("""select ?t where { ?t rdfs:subClassOf+ :Content }""")]
 
     documents = {}
     entities = {}
@@ -82,7 +88,7 @@ def build_graph(g, ipfs_client, ipfs_namespace, source_dir):
                     logging.debug("%s: found link to %s" % (documents[s], url))
                     gg.add((documents[s], F.includes, uriref))
                 else:
-                    logging.warn("%s: found link to non-document %s %s" % (documents[s], url, documents))
+                    logging.info("%s: found link to non-document %s" % (documents[s], url))
 
         else:
             gg.add((entities[s], p, o))
@@ -97,7 +103,7 @@ def build_graph(g, ipfs_client, ipfs_namespace, source_dir):
                 # TODO: refactor these additions to the graph and save out the full RDF
                 blob_id = add_rendition(gg, doc_id, blob, ipfs_client, ipfs_namespace,
                     mediaType=rdflib.Literal(mime),
-                    charset=rdflib.Literal('utf-8') # let's hope
+                    charset=rdflib.Literal("utf-8"),
                     )
 
                 if mime == 'text/markdown':
@@ -108,7 +114,7 @@ def build_graph(g, ipfs_client, ipfs_namespace, source_dir):
                             logging.debug("%s: found link to %s" % (doc_id, url))
                             gg.add((doc_id, F.includes, uriref))
                         else:
-                            logging.warn("%s: found link to non-document %s %s" % (doc_id, url, documents))
+                            logging.warning("%s: found link to non-document %s %s" % (doc_id, url, documents))
 
             except IOError:
                 pass

@@ -152,6 +152,7 @@ class TemplatableGraph:
             self.g = Graph()
         else:
             self.g = g
+            logging.debug("Found namespaces: %s" % '\n'.join([str(x) for x in self.g.namespaces()]))
 
         self.entities = {}
         self.predicates = {}
@@ -204,7 +205,10 @@ class TemplatableGraph:
     def safePath(self, p):
         for (px, n) in self.g.namespaces():
             if p.startswith(n):
-                return px+'_'+p[len(n):]
+                if px=='':
+                    return p[len(n):]
+                else:
+                    return px+'_'+p[len(n):]
         return "lit_"+re.sub('[^A-Za-z0-9]','_',p)
 
     def __contains__(self, e):
@@ -228,7 +232,7 @@ class TemplatableGraph:
                 logging.debug("Duplicate predicate definition for %s (inverse)" % p)
                 return
 
-            logging.warn("Re-registering predicate %s with inverse %s (was %s)" % (p, ip, self.inv_predicates.get(sp, None)))
+            logging.debug("Re-registering predicate %s with inverse %s (was %s)" % (p, ip, self.inv_predicates.get(sp, None)))
         else:
             self.predicates[sp] = TemplatablePredicate(p, sp)
             self.entities[sp] = self.predicates[sp]

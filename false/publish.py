@@ -23,8 +23,8 @@ class ImgRewriter(markdown.treeprocessors.Treeprocessor):
             src_safe = self.tg.safePath(src)
             logging.debug("Found image with src %s" % src)
             if src_safe in self.tg.entities:
-                if self.tg.entities[src_safe].f_embedPath:
-                    image.set('src', self.tg.entities[src_safe].f_embedPath)
+                if self.tg.entities[src_safe].embedPath:
+                    image.set('src', self.tg.entities[src_safe].embedPath)
                     image.tag = 'false-embed'
                 else:
                     pass # sometimes an image is just an image
@@ -68,32 +68,33 @@ def resolve_embed(m, tg, e, in_p=False):
     raise EmbedNotReady("Couldn't open file to embed: %s" % src)
 
 def get_html_body_for_rendition(tg, e, r, ipfs_client, markdown_processor, ipfs_dir):
-    mt = r.f_mediaType
+    def get_charset(r, e, mt):
+        for c in r.charset:
+            return c
+        else:
+            logging.warning("%s: no charset for %s rendition %s" % (e, mt, repr(r)))
+            return 'utf-8'
 
-    if r.f_charset:
-        enc = r.f_charset.pop()
-    else:
-        logging.warning("%s: no charset for %s rendition" % (e, mt))
-        enc = 'utf-8'
+    mt = r.mediaType
 
-    logging.info('%s: found %s rendition' % (e, mt))
+    logging.debug('%s: found %s rendition' % (e, mt))
 
     if rdflib.Literal('text/html') in mt:
-        return ipfs_client.cat(r.id).decode(enc)
+        return ipfs_client.cat(r.id).decode(get_charset(r, e, mt))
 
     if rdflib.Literal('text/markdown') in mt:
-        return markdown_processor.convert(ipfs_client.cat(r.id).decode(enc))
+        return markdown_processor.convert(ipfs_client.cat(r.id).decode(get_charset(r, e, mt)))
 
     for m in mt:
         if m.startswith('image/'):
             save_ipfs(ipfs_client, r, ipfs_dir)
-            return '<img data-src="%s" alt="%s">' % (r.f_blobURL, e.f_description)
+            return '<img src="%s" alt="%s">' % (r.blobURL, e.description)
 
-    logging.debug("%s: media type %s is not a suitable body" % (e, mt))
+    logging.info("%s: media type %s is not a suitable body" % (e, mt))
     return None
 
 def get_html_body(tg, e, ipfs_client, markdown_processor, ipfs_dir):
-    available = e.f_rendition
+    available = e.rendition
 
     for r in available:
         eh = get_html_body_for_rendition(tg, e, r, ipfs_client, markdown_processor, ipfs_dir)
@@ -103,7 +104,7 @@ def get_html_body(tg, e, ipfs_client, markdown_processor, ipfs_dir):
     logging.debug("%s: no suitable body" % e)
     return '<!-- non-renderable item %s -->' % e
 
-def publish(g, template_dir, output_dir, url_base, ipfs_client):
+def publish(g, template_dir, output_dir, url_base, ipfs_client, home_site):
     tg = TemplatableGraph(g)
 
     jinja_e = jinja2.Environment(loader=jinja2.FileSystemLoader('templates'))
@@ -113,6 +114,7 @@ def publish(g, template_dir, output_dir, url_base, ipfs_client):
     embed_html = {}
     stage = {}
     to_write = set()
+    home_page = None
 
     for e_safe, e in tg.entities.items():
         stage[e] = {}
@@ -126,22 +128,25 @@ def publish(g, template_dir, output_dir, url_base, ipfs_client):
 
             while e_types:
                 for e_type in e_types:
+                    t_path = os.path.join(ctx_safe, e_type.safe)
                     try:
-                        t = jinja_e.get_template(e_type.safe+'.'+ctx_safe)
-                    except IOError as err:
-                        logging.debug("%s: no template %s.%s" % (e, e_type.safe, ctx_safe))
+                        t = jinja_e.get_template(t_path)
+                    except jinja2.exceptions.TemplateNotFound as err:
+                        logging.debug("%s: no template at %s" % (e, t_path))
                         continue
 
                     dest = get_page_path(e_safe, ctx_safe, e_type, output_dir)
                     url = get_page_url(e_safe, ctx_safe, e_type, url_base)
 
-                    logging.info('%s: will render for %s as %s -> %s' % (e, ctx, e_type, dest))
+                    logging.debug('%s: will render for %s as %s -> %s' % (e, ctx, e_type, dest))
                     stage[e][ctx] = (t, dest)
+                    if e.id == rdflib.URIRef(home_site) and ctx == F.asPage:
+                        home_page = url
 
                     e_types = None # found a renderable type
 
                     if ctx == F.asPage:
-                        if e.f_url:
+                        if e.url:
                             # graph specified the URL, don't make one
                             break
                         elif F.Page in e.rdf_type:
@@ -173,13 +178,13 @@ def publish(g, template_dir, output_dir, url_base, ipfs_client):
             for ctx in dests:
                 t, dest = dests[ctx]
 
-                for embed in e.f_includes:
+                for embed in e.includes:
                     if F.asEmbed in stage[embed]:
                         et, ed = stage[embed][F.asEmbed]
                     else:
                         raise ValueError("%s: need %s but there is no way to embed it" % (e, embed))
                     if ed in to_write:
-                        logging.info("%s: can't write %s yet, need %s" % (e, dest, ed))
+                        logging.debug("%s: can't write %s yet, need %s" % (e, dest, ed))
                         break
                     logging.debug("%s: %s looks good" % (e, ed))
                 else:
@@ -195,7 +200,7 @@ def publish(g, template_dir, output_dir, url_base, ipfs_client):
                     content = t.render(e.po)
 
                     os.makedirs(os.path.dirname(dest), exist_ok=True)
-                    logging.info("%s: writing %s" % (e, dest))
+                    logging.debug("%s: writing %s" % (e, dest))
                     with open(dest,'w') as f:
                         f.write(content)
 
@@ -208,11 +213,13 @@ def publish(g, template_dir, output_dir, url_base, ipfs_client):
     else:
         logging.info("All written successfully.")
 
-if __name__=="__main__":
-    g = rdflib.Graph()
-    for path, dirs, files in os.walk(FALSE_SRC):
-      for f in files:
-          if f.endswith('.ttl'):
-              logging.info("Loading %s from %s" % (f,path))
-              g.load(os.path.join(path,f), format='ttl')
-    publish(build_graph(g))
+    return home_page
+
+#if __name__=="__main__":
+#    g = rdflib.Graph()
+#    for path, dirs, files in os.walk(FALSE_SRC):
+#      for f in files:
+#          if f.endswith('.ttl'):
+#              logging.info("Loading %s from %s" % (f,path))
+#              g.load(os.path.join(path,f), format='ttl')
+#    publish(build_graph(g))

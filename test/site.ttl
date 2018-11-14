@@ -1,11 +1,10 @@
-@prefix : <http://www.colourcountry.net/id/site/> .
-@prefix f: <http://www.colourcountry.net/false/model/> .
+@prefix : <http://www.colourcountry.net/false/model/> .
 @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
 @prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
 
-:Site a f:Site
+<Site> a :Site
 ;  skos:prefLabel "FALSE demo site"@en
-;  f:markdown
+;  :markdown
 """
 This web site demonstrates all the features of FALSE.
 
@@ -15,18 +14,18 @@ Find out more using the "contents" menu.
 """
 .
 
-:whatisfalse a f:Document
+<whatisfalse> a :Document
 ;  skos:prefLabel "What is FALSE?"@en
 .
 
-:markdown a f:Document
-;  f:featuresOn :Site
+<markdown> a :Document
+;  :featuresOn <Site>
 ;  skos:prefLabel "Using markdown"@en
-;  f:updated "2018-10-12T10:18:00.000Z"^^xsd:dateTime
-;  f:markdown
+;  :updated "2018-10-12T10:18:00.000Z"^^xsd:dateTime
+;  :markdown
 """
 You can define the document content in Markdown
-by defining `f:markdown` in the TTL.
+by defining `:markdown` in the TTL.
 
 Images and embeds are more powerful than standard Markdown.
 If you've defined an image as a Content (or a sub-type, like Picture), then you can embed it by its ID like this
@@ -50,15 +49,15 @@ If you just want to embed an image from the internet, you can still do that, but
 """@en
 .
 
-:reusable a f:Document
+<reusable> a :Document
 ;  skos:prefLabel "Reusable content"@en
 .
 
-:renditions a f:Document
-;  f:featuresOn :Site
+<renditions> a :Document
+;  :featuresOn <Site>
 ;  skos:prefLabel "Renditions"@en
-;  f:updated "2018-10-15T23:08:00.000+01:00"^^xsd:dateTime
-;  f:markdown
+;  :updated "2018-10-15T23:08:00.000+01:00"^^xsd:dateTime
+;  :markdown
 """
 A rendition is a representation of a document,
 for example as a media file.
@@ -79,9 +78,9 @@ look for files beginning `renditions`:
 
 and so on.
 
-Templates can access these using `{{ f_rendition }}`.
+Templates can access these using `{{ rendition }}`.
 
 FALSE will choose the rendition most suitable for presenting on a Web site
-and generate HTML code for it that can be included using `{{ f_html }}`.
+and generate HTML code for it that can be included using `{{ html }}`.
 """@en
 .

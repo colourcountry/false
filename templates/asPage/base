@@ -2,14 +2,13 @@
 <html>
     <head>
         <title>{% block title %}{% endblock %}</title>
-        <link rel="stylesheet" type="text/css" href="../../static/base.css">
+        <link rel="stylesheet" type="text/css" href="/static/base.css">
 	<link href="https://fonts.googleapis.com/css?family=Quicksand|Rubik+Mono+One|VT323" rel="stylesheet">
-        <script src="../../static/rewrite-ipfs-links.js"></script>
     </head>
     <body class="{{ body_class }}">
         {% block headline %}{% endblock %}
         {% block content %}{% endblock %}
-        <div id="links">{% block links %}{% endblock %}</div>
+        <div id="links">{% block links %}{% endblock %}{% block downloads %}{% endblock %}</div>
 	<div id="debug">{% block debug %}{% endblock %}</div>
     </body>
 </html>

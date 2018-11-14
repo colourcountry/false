@@ -1,0 +1,12 @@
+{% extends "asPage/Content" %}
+
+{% block links %}
+            {% if features %}
+                <h3>Contents</h3>
+                <ul>
+                    {% for item in features %}
+                        <li><a href="{{ item.url }}">{{ item.skos_prefLabel }}</a></li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+{% endblock %}

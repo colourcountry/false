@@ -95,10 +95,20 @@
 ;  rdfs:range :Media
 .
 
+:renditionOf a owl:DatatypeProperty
+;  rdfs:label "rendition of"@en
+;  owl:inverseOf :rendition
+.
+
 :description a owl:DatatypeProperty
 ;  rdfs:label "description"@en
 ;  rdfs:domain skos:Concept
 ;  rdfs:range xsd:string
+.
+
+:renditionOf a owl:DatatypeProperty
+;  rdfs:label "description of"@en
+;  owl:inverseOf :description
 .
 
 :markdown a owl:DatatypeProperty
@@ -207,3 +217,4 @@
 :rangeOf a rdf:Property
 ;  owl:inverseOf rdfs:range
 .
+

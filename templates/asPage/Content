@@ -1,0 +1,35 @@
+{% extends "asPage/skos_Concept" %}
+
+{% block headline %}
+        <h1>{{ skos_prefLabel }}</h1>
+        <h2>a <a href="{{ this.type().url }}">{{ this.type().rdfs_label }}</a></h2>
+        {% if description %}
+        <p>
+            {{ description }}
+        </p>
+        {% endif %}
+        <p>
+            {% if published %} published on {{ published }}, {% endif %}
+            {% if updated %} updated {{ updated }}, {% endif %}
+        </p>
+{% endblock %}
+
+{% block content %}
+        {% for item in html %}
+            <section>
+                {{ item }}
+            </section>
+        {% endfor %}
+{% endblock %}
+
+{% block downloads %}
+         {% if rendition %}
+                <h3>Download</h3>
+                <ul>
+                    {% for item in rendition %}
+                        <li><a href="{{ item.id }}">{{ item.mediaType }}</a></li>
+                    {% endfor %}
+                </ul>
+        {% endif %}
+{% endblock %}
+
