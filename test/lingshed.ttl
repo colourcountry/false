@@ -1,4 +1,4 @@
-@prefix : <http://www.colourcountry.net/false/model/> .
+@prefix : <http://id.colourcountry.net/false/> .
 @prefix owl:   <http://www.w3.org/2002/07/owl#> .
 @prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
@@ -97,3 +97,19 @@ w:India a w:Place
 gmaps:India a :Page ; :about w:India ; skos:prefLabel "India on Google Maps" .
 
 wiki:Q668 :url wikipage:Q668 ; skos:prefLabel "India on Wikidata" .
+
+# Content can mention places.
+
+<india-trip> a :Document
+;   skos:prefLabel "My trip to India"@en
+;   :markdown
+"""
+I took [this photo](lingshed) when I went to [India](http://id.colourcountry.net/world/India) in 2018.
+It was a great trip!
+
+When you mention something you've defined that's not a document (like a place), use the link syntax to tell FALSE the connection with that entity.
+
+You can't embed things that aren't documents.
+"""
+.
+

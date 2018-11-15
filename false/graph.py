@@ -21,6 +21,9 @@ class TemplatableSet(set):
     def surround(self, pfx, sfx, ifx=''):
         return pfx+(sfx+ifx+pfx).join(str(i) for i in self)+sfx
 
+    def join(self, ifx):
+        return self.surround('', '', ifx)
+
     def difference(self, other):
         return TemplatableSet(set.difference(self, other))
 

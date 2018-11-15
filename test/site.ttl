@@ -1,7 +1,7 @@
 # Let's make a Web site with FALSE!
 
 # I'll be using a lot of the stuff FALSE has defined for us, so I'll declare a prefix first.
-@prefix : <http://www.colourcountry.net/false/model/> .
+@prefix : <http://id.colourcountry.net/false/> .
 # This means that when you see an ID like :Site, it refers to something defined by FALSE,
 # in this case <http://www.colourcountry.net/false/model/Site>
 
@@ -53,9 +53,6 @@ You can link to any document using its ID with `[](document-id)`.
 Using relative URLs makes it convenient to link things which are in the same domain as the site.
 When linking to a document you don't need to supply link text, as FALSE will use the document's title.
 
-In fact you can link to any entity that you've defined, it doesn't have to be a document.
-Here is a link to [an entity that isn't a document](http://id.colourcountry.net/world/India)
-
 [Links to external Web resources](https://daringfireball.net/projects/markdown/syntax) still work in the normal way.
 
 ## Embedding content
@@ -76,9 +73,7 @@ This isn't limited to images: any document can be embedded, including other docu
 
 ![](reusable)
 
-Actually you can embed anything that's defined, even if it's not a document, as long as there is an [embed template](templates) for it.
-
-![](http://id.colourcountry.net/world/India)
+You can't embed something that isn't a document. (Strictly 
 
 If you just want to embed an image from the internet, you can still do that, but you don't get <s>a cookie</s> the extra features.
 

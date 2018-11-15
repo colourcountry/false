@@ -1,19 +1,22 @@
 #!/usr/bin/python3
 
 import rdflib
-from rdflib.namespace import RDF, RDFS, DC, SKOS, OWL
-import logging, os, re, datetime, markdown, urllib.parse
+from rdflib.namespace import RDF, RDFS, DC, SKOS, OWL, XSD
+import logging, os, re, io, datetime, markdown, urllib.parse, json, posixpath
 
-F = rdflib.Namespace("http://www.colourcountry.net/false/model/")
+F = rdflib.Namespace("http://id.colourcountry.net/false/")
 HTTP = rdflib.Namespace("http://")
 HTTPS = rdflib.Namespace("https://")
 
 
-FILE_TYPES = { ".html": "text/html",
-               ".txt": "text/plain",
-               ".md": "text/markdown",
-               ".jpg": "image/jpeg",
-               ".png": "image/png" }
+FILE_TYPES = { "text/html": ".html",
+               "text/plain": ".txt",
+               "text/markdown": ".md",
+               "image/jpeg": ".jpg",
+               "image/png": ".png" }
+
+class ValidationError(ValueError):
+    pass
 
 # h/t https://stackoverflow.com/questions/29259912/how-can-i-get-a-list-of-image-urls-from-a-markdown-file-in-python
 class ImgExtractor(markdown.treeprocessors.Treeprocessor):
@@ -39,21 +42,49 @@ class ImgExtExtension(markdown.extensions.Extension):
         img_ext = ImgExtractor(md, self.getConfig('base'))
         md.treeprocessors.add('imgext', img_ext, '>inline')
 
-def add_rendition(g, doc_id, blob, ipfs_client, ipfs_namespace, **properties):
+def add_rendition(g, doc_id, blob, ipfs_client, ipfs_namespace, mediaType, **properties):
     if not ipfs_client:
         logging.warning("No IPFS, can't add rendition info to document %s" % doc_id)
         return None
 
-    r = ipfs_client.add_bytes(blob)
-    blob_id = ipfs_namespace[r]
-    g.add((blob_id, RDF.type, F.Media))
-    g.add((blob_id, F.blobURL, blob_id))
+    blob_hash = ipfs_client.add_bytes(blob)
+
+    doc_basename = posixpath.basename(doc_id)
+    if doc_basename:
+        blob_filename = doc_basename+FILE_TYPES[str(mediaType)]
+    else:
+        blob_filename = "blob"+FILE_TYPES[str(mediaType)]
+
+    info = rdflib.Graph()
+    info.bind('', F)
+    for p, o in g[doc_id]:
+        info.add((doc_id, p, o))
+    info.add((doc_id, F.rendition, rdflib.URIRef(blob_filename))) # relative path to the file, as we don't know the hash
+    info_blob = info.serialize(format='ttl')
+    logging.debug(info_blob)
+
+    ipld = {"Links": [{"Name": blob_filename, "Hash": blob_hash, "Size": len(blob)}],
+            "Data": "\u0008\u0001"} # this data seems to be required for something to be a directory
+
+    if info_blob:
+        info_hash = ipfs_client.add_bytes(info_blob)
+        ipld["Links"].append({"Name": "info.ttl", "Hash": info_hash, "Size": len(info_blob)})
+
+    ipld_blob = json.dumps(ipld).encode('utf-8')
+    logging.debug(ipld_blob)
+    wrapper_resp = ipfs_client.object_put(io.BytesIO(ipld_blob))
+
+    wrapped_id = ipfs_namespace["%s/%s" % (wrapper_resp["Hash"], blob_filename)]
+    g.add((wrapped_id, RDF.type, F.Media))
+    g.add((wrapped_id, F.mediaType, mediaType))
+    g.add((wrapped_id, F.blobURL, wrapped_id))
+
     for k, v in properties.items():
         logging.debug("%s: adding property %s=%s" % (doc_id, k, v))
-        g.add((blob_id, F[k], v))
-    logging.info("%s: adding rendition %s" % (doc_id, blob_id))
-    g.add((doc_id, F.rendition, blob_id))
-    return blob_id
+        g.add((wrapped_id, F[k], v))
+    logging.info("%s: adding rendition %s" % (doc_id, wrapped_id))
+    g.add((doc_id, F.rendition, wrapped_id))
+    return wrapped_id
 
 
 def build_graph(g, ipfs_client, ipfs_namespace, source_dir, id_base):
@@ -89,7 +120,7 @@ def build_graph(g, ipfs_client, ipfs_namespace, source_dir, id_base):
         if p == F.markdown:
             blob_id = add_rendition(gg, documents[s], o.encode('utf-8'), ipfs_client, ipfs_namespace,
                 mediaType=rdflib.Literal('text/markdown'),
-                charset=rdflib.Literal('utf-8')
+                charset=rdflib.Literal('utf-8'),
             )
 
             html = mdproc.convert(o)
@@ -98,8 +129,10 @@ def build_graph(g, ipfs_client, ipfs_namespace, source_dir, id_base):
                 if uriref in documents:
                     logging.debug("%s: found embed of %s" % (documents[s], url))
                     gg.add((documents[s], F.includes, uriref))
+                elif uriref in entities:
+                    raise ValidationError("%s: tried to embed non-document %s" % (documents[s], url))
                 else:
-                    logging.info("%s: found embed of non-document %s" % (documents[s], url))
+                    logging.debug("%s: found embed of Web document %s" % (documents[s], url))
 
             for url in mdproc.links:
                 uriref = rdflib.URIRef(url)
@@ -107,15 +140,16 @@ def build_graph(g, ipfs_client, ipfs_namespace, source_dir, id_base):
                     logging.debug("%s: found link to %s" % (documents[s], url))
                     gg.add((documents[s], F.links, uriref))
                 else:
-                    logging.info("%s: found link to non-document %s" % (documents[s], url))
+                    logging.info("%s: found mention of %s" % (documents[s], url))
+                    gg.add((documents[s], F.mentions, uriref))
 
         else:
             gg.add((entities[s], p, o))
 
     for s, doc_id in documents.items():
-        gg.add((doc_id, F.published, rdflib.Literal(datetime.datetime.now().isoformat())))
+        gg.add((doc_id, F.published, rdflib.Literal(datetime.datetime.now().isoformat(), datatype=XSD.dateTime)))
 
-        for t, mime in FILE_TYPES.items():
+        for mime, t in FILE_TYPES.items():
             fn = os.path.basename(s+t)
             try:
                 blob = open(os.path.join(source_dir,fn),'rb').read()

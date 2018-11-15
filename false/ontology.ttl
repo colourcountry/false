@@ -1,4 +1,4 @@
-@prefix : <http://www.colourcountry.net/false/model/> .
+@prefix : <http://id.colourcountry.net/false/> .
 @prefix owl:   <http://www.w3.org/2002/07/owl#> .
 @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
 @prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
@@ -186,6 +186,19 @@
 ;  rdfs:label "linked from"@en
 ;  rdfs:subClassOf skos:related
 ;  owl:inverseOf :links
+.
+
+:mentions a owl:ObjectProperty
+;  rdfs:label "mentions"@en
+;  rdfs:domain :CreativeWork
+;  rdfs:range skos:Concept
+;  rdfs:subClassOf skos:related
+.
+
+:mentionedIn a owl:ObjectProperty
+;  rdfs:label "mentioned in"@en
+;  rdfs:subClassOf skos:related
+;  owl:inverseOf :mentions
 .
 
 :about a owl:ObjectProperty

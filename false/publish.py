@@ -2,7 +2,6 @@
 
 import rdflib
 import sys, logging, os, re, urllib.parse
-import ipfsapi
 import jinja2, markdown
 import pprint
 from false.graph import *
@@ -10,6 +9,8 @@ from false.graph import *
 EXTERNAL_LINKS = {
   "http://www.wikidata.org/wiki/\\1": re.compile("http://www.wikidata.org/entity/(.*)")
 }
+
+F = rdflib.Namespace("http://id.colourcountry.net/false/")
 
 class ImgRewriter(markdown.treeprocessors.Treeprocessor):
     def __init__(self, md, tg, base):
@@ -52,10 +53,14 @@ class ImgRewriteExtension(markdown.extensions.Extension):
         img_rw = ImgRewriter(md, self.getConfig('tg'), self.getConfig('base'))
         md.treeprocessors.add('imgrewrite', img_rw, '>inline')
 
-F = rdflib.Namespace("http://www.colourcountry.net/false/model/")
-
 def save_ipfs(ipfs_client, r, ipfs_dir):
+    if not r.id.startswith("/ipfs/"):
+        raise IOError("%s: not a NURI, can't save" % r.id)
+    logging.debug("%s: saving to %s" % (r.id, ipfs_dir))
     cwd = os.getcwd()
+    subdir = os.path.dirname(r.id[6:]) # use local OS path as we just want to create dirs necessary for the path to work on this system
+    if subdir:
+        ipfs_dir = os.path.join(ipfs_dir, subdir)
     os.makedirs(ipfs_dir, exist_ok=True)
     os.chdir(ipfs_dir)
     ipfs_client.get(r.id)
@@ -110,8 +115,7 @@ def get_html_body(tg, e, ipfs_client, markdown_processor, ipfs_dir):
         if eh:
             return eh
 
-    logging.debug("%s: no suitable body" % e)
-    return '<!-- non-renderable item %s -->' % e
+    return '<!-- non-renderable item %s (tried %s) -->' % (e, available.join(', '))
 
 def publish(g, template_dir, output_dir, url_base, ipfs_client, home_site, id_base):
     tg = TemplatableGraph(g)
@@ -187,7 +191,6 @@ def publish(g, template_dir, output_dir, url_base, ipfs_client, home_site, id_ba
             for ctx in dests:
                 t, dest = dests[ctx]
 
-                logging.debug("%s: includes %s" % (e, e.includes))
                 for embed in e.includes:
                     if F.asEmbed in stage[embed]:
                         et, ed = stage[embed][F.asEmbed]

@@ -8,7 +8,7 @@ import ipfsapi
 import jinja2, markdown
 import pprint
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 FALSE_SRC = os.environ["FALSE_SRC"]
 FALSE_URL_BASE = os.environ["FALSE_URL_BASE"]
