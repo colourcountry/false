@@ -31,20 +31,20 @@ w:LingshedGonpa a w:Place
 #  FALSE doesn't have opinions about the real world, so I need to teach it what some of that means.
 
 w:Place a owl:Class
-;  rdfs:label "Place"@en
+;  skos:prefLabel "Place"@en
 ;  rdfs:subClassOf skos:Concept
 .
 
 w:locatedIn a owl:ObjectProperty
-;  rdfs:label "located in"@en
-;  rdfs:subClassOf skos:broader
+;  skos:prefLabel "located in"@en
+;  rdfs:subPropertyOf skos:broader
 ;  rdfs:domain w:Place
 ;  rdfs:range w:Place
 .
 
 w:locates a owl:ObjectProperty
-;  rdfs:label "contains"@en # ("locates" is bad English but "contains" is ambiguous.)
-;  rdfs:subClassOf skos:narrower
+;  skos:prefLabel "contains"@en # ("locates" is bad English but "contains" is ambiguous.)
+;  rdfs:subPropertyOf skos:narrower
 ;  owl:inverseOf w:locatedIn
 .
 
@@ -98,18 +98,34 @@ gmaps:India a :Page ; :about w:India ; skos:prefLabel "India on Google Maps" .
 
 wiki:Q668 :url wikipage:Q668 ; skos:prefLabel "India on Wikidata" .
 
-# Content can mention places.
+# Content can mention real-world things.
 
-<india-trip> a :Document
-;   skos:prefLabel "My trip to India"@en
+<mentions> a :Document
+;   skos:prefLabel "Mentioning things"@en
 ;   :markdown
 """
-I took [this photo](lingshed) when I went to [India](http://id.colourcountry.net/world/India) in 2018.
+I took [this photo][1] when I went to [India][2] in [2018][3].
 It was a great trip!
 
-When you mention something you've defined that's not a document (like a place), use the link syntax to tell FALSE the connection with that entity.
+In the paragraph above, the link syntax tells FALSE that this document mentions India.
+The ID in the "link" refers to India itself (in my ID scheme), not a document about it.
 
-You can't embed things that aren't documents.
+Provided FALSE has built a page for the mentioned entity, it will render the mention as a full hyperlink
+with a `rel` attribute specifying that it's a mention.
+
+If FALSE hasn't built a page for the mentioned entity, because there isn't a template for its type,
+then it will mark the mention up with HTML5's [`data` tag][4] instead, in case you want to do something with it in scripts or CSS.
+
+If FALSE knows the URL is a Web resource (like [][5]), or it doesn't recognize the linked URL at all,
+it produces a standard link.
+
+[1]: lingshed "This is a link to a document."
+[2]: http://id.colourcountry.net/world/India "This is a mention of a real world entity."
+[3]: http://id.colourcountry.net/world/2018 "This is a mention of an entity with an unrenderable or unknown type."
+[4]: https://www.w3.org/TR/html50/text-level-semantics.html#the-data-element "This is a link to a Web resource."
+[5]: https://www.google.com/maps/search/?api=1&query=India "This is a link to a Web resource FALSE knows about."
 """
 .
 
+# For this example to work, we need to tell FALSE something about 2018, but we mustn't tell it that it's a concept.
+w:2018 skos:scopeNote "This was the year I went to India." . # Did I mention that already?

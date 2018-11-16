@@ -1,8 +1,10 @@
 {% extends "asPage/skos_Concept" %}
 
+{% set body_class = "content" %}
+
 {% block headline %}
         <h1>{{ skos_prefLabel }}</h1>
-        <h2>a <a href="{{ this.type().url }}">{{ this.type().skos_prefLabel }}</a></h2>
+        <h2>a <a href="{{ this.type().url }}" rel="http://www.w3.org/1999/02/22-rdf-syntax-ns#type">{{ this.type().skos_prefLabel }}</a></h2>
         {% if description %}
         <p>
             {{ description }}
@@ -17,7 +19,7 @@
 {% block content %}
         {% for item in html %}
             <section>
-                {{ item }}
+                {{ item|safe }}
             </section>
         {% endfor %}
 {% endblock %}
@@ -32,4 +34,3 @@
                 </ul>
         {% endif %}
 {% endblock %}
-

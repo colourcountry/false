@@ -11,12 +11,16 @@ body
 	font-weight: 200;
 	font-size: 16pt;
 	padding-left: 1em;
-	border-left: 1em solid #f00;
+	border-left: 1em solid #0f0;
 	padding-right: 5%;
 }
 
 body.ontology{
     border-left: 1em solid #00f;
+}
+
+body.content{
+    border-left: 1em solid #f00;
 }
 
 #renditions
@@ -50,11 +54,21 @@ h1, h2, h3
 a, a:visited
 {
 	color: white;
-	text-decoration: underline blue double;
+	text-decoration: underline red double;
 }
 
-a.exactMatch {
-	color: blue;
+a[rel="http://id.colourcountry.net/false/mentions"]
+{
+    text-decoration: underline green double;
+}
+
+a[rel="http://www.w3.org/1999/02/22-rdf-syntax-ns#type"]
+{
+    text-decoration: underline blue double;
+}
+
+a.wikidata {
+	color: #0ff;
 	text-decoration: none;
 }
 

@@ -55,7 +55,11 @@ URLs are relative to the base ID supplied to the build process, so you can easil
 
 When linking to a document, if you don't supply link text, FALSE will use the document's title.
 
+The document gets a "links to" relationship which you can use in [templates][1].
+
 [Links to external Web resources](https://daringfireball.net/projects/markdown/syntax) still work in the normal way.
+
+If you use the link syntax for something that's not a document, you get a ["mentions"][2] relationship.
 
 ## Embedding content
 
@@ -76,6 +80,9 @@ You can't embed something that isn't a document, only link to it.
 If you just want to embed an image from the internet, you can still do that, but you don't get <s>a cookie</s> the extra features.
 
 ![a kitten](http://placekitten.com/150/150)
+
+[1]: templates "Footnote style links are also supported."
+[2]: mentions
 """@en
 .
 

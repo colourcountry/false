@@ -12,6 +12,9 @@ EXTERNAL_LINKS = {
 
 F = rdflib.Namespace("http://id.colourcountry.net/false/")
 
+class PublishError(ValueError):
+    pass
+
 class ImgRewriter(markdown.treeprocessors.Treeprocessor):
     def __init__(self, md, tg, base):
         self.tg = tg
@@ -30,19 +33,28 @@ class ImgRewriter(markdown.treeprocessors.Treeprocessor):
                     image.set('context', F.asEmbed)
                     image.tag = 'false-embed'
                 else:
-                    pass # sometimes an image is just an image
+                    raise PublishError("don't have an embeddable version of %s" % src)
+            else:
+                pass # sometimes an image is just an image
 
         for link in doc.findall('.//a'):
             href = urllib.parse.urljoin(self.base, link.get('href'))
             href_safe = self.tg.safePath(href)
             logging.debug("Found link with href %s" % href)
             if href_safe in self.tg.entities:
-                if self.tg.entities[href_safe].url:
-                    link.set('href', self.tg.entities[href_safe].url)
+                e = self.tg.entities[href_safe]
+                if e.url:
+                    link.set('href', str(e.url))
                     if not link.text:
-                        link.text = str(self.tg.entities[href_safe].skos_prefLabel)
+                        link.text = str(e.skos_prefLabel)
+                    if F.Content not in e.rdf_type: # FIXME: duplicates logic from build
+                        link.set('rel', str(F.mentions))
                 else:
-                    pass # sometimes a link is just a link
+                    link.set('value', href)
+                    link.attrib.pop('href')
+                    link.tag = 'data'
+            else:
+                pass # sometimes a link is just a link
 
 class ImgRewriteExtension(markdown.extensions.Extension):
     def __init__(self, **kwargs):
@@ -121,7 +133,10 @@ def get_html_body(tg, e, ipfs_client, markdown_processor, ipfs_dir):
 def publish(g, template_dir, output_dir, url_base, ipfs_client, home_site, id_base):
     tg = TemplatableGraph(g)
 
-    jinja_e = jinja2.Environment(loader=jinja2.FileSystemLoader('templates'))
+    jinja_e = jinja2.Environment(
+        loader=jinja2.FileSystemLoader('templates'),
+        autoescape=True
+    )
 
     markdown_processor = markdown.Markdown(output_format="html5", extensions=[ImgRewriteExtension(tg=tg, base=id_base)])
 
@@ -196,7 +211,7 @@ def publish(g, template_dir, output_dir, url_base, ipfs_client, home_site, id_ba
                     if F.asEmbed in stage[embed]:
                         et, ed = stage[embed][F.asEmbed]
                     else:
-                        raise ValueError("%s: need %s but there is no way to embed it" % (e, embed))
+                        raise PublishError("%s: need %s but there is no way to embed it" % (e, embed))
                     if ed in to_write:
                         logging.debug("%s: can't write %s yet, need %s" % (e, dest, ed))
                         break
@@ -223,17 +238,8 @@ def publish(g, template_dir, output_dir, url_base, ipfs_client, home_site, id_ba
                         progress = True
 
     if to_write:
-        logging.error("Embed loop, can't render these: %s" % '\n'.join(to_write))
+        raise PublishError("Embed loop, can't render these: %s" % '\n'.join(to_write))
     else:
         logging.info("All written successfully.")
 
     return home_page
-
-#if __name__=="__main__":
-#    g = rdflib.Graph()
-#    for path, dirs, files in os.walk(FALSE_SRC):
-#      for f in files:
-#          if f.endswith('.ttl'):
-#              logging.info("Loading %s from %s" % (f,path))
-#              g.load(os.path.join(path,f), format='ttl')
-#    publish(build_graph(g))

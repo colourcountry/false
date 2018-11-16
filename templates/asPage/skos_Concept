@@ -4,26 +4,30 @@
 
 {% block headline %}
     <h1>{{ skos_prefLabel }}</h1>
-    <h2>a <a href="{{ this.type().url }}">{{ this.type().skos_prefLabel }}</a>
+    <h2>a <a href="{{ this.type().url }}" rel="http://www.w3.org/1999/02/22-rdf-syntax-ns#type">{{ this.type().skos_prefLabel }}</a>
+
     {% for item in skos_exactMatch %}
         {% if item.id.startswith("http://www.wikidata.org/entity/") %}
-          <a class="exactMatch wikidata" href="{{ item.url }}" title="{{ item.id }}">&#x1f310;</a>
+          <a class="wikidata" rel="{{ this.rel(item) }}" href="{{ item.url }}" title="{{ item.id }}">&#x1f310;</a>
         {% elif item.url %}
-          <a class="exactMatch" href="{{ item.url }}" title="{{ item.id }}">&#x1f875;</a>
+          <a rel="{{ this.rel(item) }}" href="{{ item.url }}" title="{{ item.id }}">&#x1f875;</a>
         {% endif %}
     {% endfor %}
     </h2>
+
     {% if skos_scopeNote %}
     <p>{{ skos_scopeNote }}</p>
     {% endif %}
+
     {% for item in depictedIn %}
-        <p><a href="{{ item.url }}">{{ item.html }}</a></p>
+        <p><a rel="{{ this.rel(item) }}" href="{{ item.url }}">{{ item.html|safe }}</a></p>
     {% endfor %}
+
     {% if skos_closeMatch %}
         <h3>See also</h3>
         <ul>
             {% for item in skos_closeMatch %}
-                <li><a href="{{ item.url }}">{{ item.skos_prefLabel }}</a></li>
+                <li><a rel="{{ this.rel(item) }}" href="{{ item.url }}">{{ item.skos_prefLabel }}</a></li>
             {% endfor %}
         </ul>
     {% endif %}
@@ -35,10 +39,8 @@
                 <h3>Related</h3>
                 <ul>
                     {% for item in skos_related %}
-                        {% if depictedIn not in this.rels(item) %}
-                            <li>{{ this.rel(item).rdfs_label }} <a href="{{ item.url }}">
-                                {% if item.collectiveLabel %}{{ item.collectiveLabel }}{% else %}{{ item.skos_prefLabel }}{% endif %}
-                            </a></li>
+                        {% if item.skos_prefLabel and depictedIn not in this.rels(item) %}
+                            <li>{{ this.rel(item).skos_prefLabel }} <a href="{{ item.url }}" rel="{{ this.rel(item) }}">{{ item.skos_prefLabel }}</a></li>
                         {% endif %}
                     {% endfor %}
                 </ul>
@@ -47,9 +49,9 @@
                 <h3>Narrower</h3>
                 <ul>
                     {% for item in skos_narrower %}
-                            <li>{{ this.rel(item).rdfs_label }} <a href="{{ item.url }}">
-                                {% if item.collectiveLabel %}{{ item.collectiveLabel }}{% else %}{{ item.skos_prefLabel }}{% endif %}
-                            </a></li>
+                        {% if item.skos_prefLabel %}
+                            <li>{{ this.rel(item).skos_prefLabel }} <a href="{{ item.url }}" rel="{{ this.rel(item) }}">{{ item.skos_prefLabel }}</a></li>
+                        {% endif %}
                     {% endfor %}
                 </ul>
             {% endif %}
@@ -57,9 +59,9 @@
                 <h3>Broader</h3>
                 <ul>
                     {% for item in skos_broader %}
-                            <li>{{ this.rel(item).rdfs_label }} <a href="{{ item.url }}">
-                                {% if item.collectiveLabel %}{{ item.collectiveLabel }}{% else %}{{ item.skos_prefLabel }}{% endif %}
-                            </a></li>
+                        {% if item.skos_prefLabel %}
+                            <li>{{ this.rel(item).skos_prefLabel }} <a href="{{ item.url }}" rel="{{ this.rel(item) }}">{{ item.skos_prefLabel }}</a></li>
+                        {% endif %}
                     {% endfor %}
                 </ul>
             {% endif %}

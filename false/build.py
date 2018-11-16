@@ -42,14 +42,14 @@ class ImgExtExtension(markdown.extensions.Extension):
         img_ext = ImgExtractor(md, self.getConfig('base'))
         md.treeprocessors.add('imgext', img_ext, '>inline')
 
-def add_rendition(g, doc_id, blob, ipfs_client, ipfs_namespace, mediaType, **properties):
+def add_rendition(g, content_id, blob, ipfs_client, ipfs_namespace, mediaType, **properties):
     if not ipfs_client:
-        logging.warning("No IPFS, can't add rendition info to document %s" % doc_id)
+        logging.warning("No IPFS, can't add rendition info to document %s" % content_id)
         return None
 
     blob_hash = ipfs_client.add_bytes(blob)
 
-    doc_basename = posixpath.basename(doc_id)
+    doc_basename = posixpath.basename(content_id)
     if doc_basename:
         blob_filename = doc_basename+FILE_TYPES[str(mediaType)]
     else:
@@ -57,11 +57,10 @@ def add_rendition(g, doc_id, blob, ipfs_client, ipfs_namespace, mediaType, **pro
 
     info = rdflib.Graph()
     info.bind('', F)
-    for p, o in g[doc_id]:
-        info.add((doc_id, p, o))
-    info.add((doc_id, F.rendition, rdflib.URIRef(blob_filename))) # relative path to the file, as we don't know the hash
+    for p, o in g[content_id]:
+        info.add((content_id, p, o))
+    info.add((content_id, F.rendition, rdflib.URIRef(blob_filename))) # relative path to the file, as we don't know the hash
     info_blob = info.serialize(format='ttl')
-    logging.debug(info_blob)
 
     ipld = {"Links": [{"Name": blob_filename, "Hash": blob_hash, "Size": len(blob)}],
             "Data": "\u0008\u0001"} # this data seems to be required for something to be a directory
@@ -71,7 +70,6 @@ def add_rendition(g, doc_id, blob, ipfs_client, ipfs_namespace, mediaType, **pro
         ipld["Links"].append({"Name": "info.ttl", "Hash": info_hash, "Size": len(info_blob)})
 
     ipld_blob = json.dumps(ipld).encode('utf-8')
-    logging.debug(ipld_blob)
     wrapper_resp = ipfs_client.object_put(io.BytesIO(ipld_blob))
 
     wrapped_id = ipfs_namespace["%s/%s" % (wrapper_resp["Hash"], blob_filename)]
@@ -80,10 +78,10 @@ def add_rendition(g, doc_id, blob, ipfs_client, ipfs_namespace, mediaType, **pro
     g.add((wrapped_id, F.blobURL, wrapped_id))
 
     for k, v in properties.items():
-        logging.debug("%s: adding property %s=%s" % (doc_id, k, v))
+        logging.debug("%s: adding property %s=%s" % (content_id, k, v))
         g.add((wrapped_id, F[k], v))
-    logging.info("%s: adding rendition %s" % (doc_id, wrapped_id))
-    g.add((doc_id, F.rendition, wrapped_id))
+    logging.info("%s: adding rendition %s" % (content_id, wrapped_id))
+    g.add((content_id, F.rendition, wrapped_id))
     return wrapped_id
 
 
@@ -101,7 +99,7 @@ def build_graph(g, ipfs_client, ipfs_namespace, source_dir, id_base):
 
     doc_types = [x[0] for x in g.query("""select ?t where { ?t rdfs:subClassOf+ :Content }""")]
 
-    documents = {}
+    content = {}
     entities = {}
     mdproc = markdown.Markdown(extensions=[ImgExtExtension(base=id_base)])
 
@@ -109,16 +107,17 @@ def build_graph(g, ipfs_client, ipfs_namespace, source_dir, id_base):
         if s not in entities:
             entities[s] = s
         if p == RDF.type:
-            if o == F.Document or o in doc_types:
+            if o == F.Content or o in doc_types:
+                logging.debug("Found content %s" % s)
                 entities[s] = s
-                documents[s] = s
+                content[s] = s
 
     for s, p, o in g:
         if o in entities:
             o = entities[o]
 
         if p == F.markdown:
-            blob_id = add_rendition(gg, documents[s], o.encode('utf-8'), ipfs_client, ipfs_namespace,
+            blob_id = add_rendition(gg, content[s], o.encode('utf-8'), ipfs_client, ipfs_namespace,
                 mediaType=rdflib.Literal('text/markdown'),
                 charset=rdflib.Literal('utf-8'),
             )
@@ -126,35 +125,37 @@ def build_graph(g, ipfs_client, ipfs_namespace, source_dir, id_base):
             html = mdproc.convert(o)
             for url in mdproc.images:
                 uriref = rdflib.URIRef(url)
-                if uriref in documents:
-                    logging.debug("%s: found embed of %s" % (documents[s], url))
-                    gg.add((documents[s], F.includes, uriref))
+                if uriref in content:
+                    logging.debug("%s: found embed of %s" % (content[s], url))
+                    gg.add((content[s], F.includes, uriref))
                 elif uriref in entities:
-                    raise ValidationError("%s: tried to embed non-document %s" % (documents[s], url))
+                    raise ValidationError("%s: tried to embed non-document %s" % (content[s], url))
                 else:
-                    logging.debug("%s: found embed of Web document %s" % (documents[s], url))
+                    logging.debug("%s: found embed of Web document %s" % (content[s], url))
 
             for url in mdproc.links:
                 uriref = rdflib.URIRef(url)
-                if uriref in documents:
-                    logging.debug("%s: found link to %s" % (documents[s], url))
-                    gg.add((documents[s], F.links, uriref))
+                if uriref in content:
+                    logging.debug("%s: found link to %s" % (content[s], url))
+                    gg.add((content[s], F.links, uriref))
+                elif uriref in entities:
+                    logging.info("%s: found mention of %s" % (content[s], url))
+                    gg.add((content[s], F.mentions, uriref))
                 else:
-                    logging.info("%s: found mention of %s" % (documents[s], url))
-                    gg.add((documents[s], F.mentions, uriref))
+                    logging.debug("%s: found link to Web document %s" % (content[s], url))
 
         else:
             gg.add((entities[s], p, o))
 
-    for s, doc_id in documents.items():
-        gg.add((doc_id, F.published, rdflib.Literal(datetime.datetime.now().isoformat(), datatype=XSD.dateTime)))
+    for s, content_id in content.items():
+        gg.add((content_id, F.published, rdflib.Literal(datetime.datetime.now().isoformat(), datatype=XSD.dateTime)))
 
         for mime, t in FILE_TYPES.items():
             fn = os.path.basename(s+t)
             try:
                 blob = open(os.path.join(source_dir,fn),'rb').read()
                 # TODO: refactor these additions to the graph and save out the full RDF
-                blob_id = add_rendition(gg, doc_id, blob, ipfs_client, ipfs_namespace,
+                blob_id = add_rendition(gg, content_id, blob, ipfs_client, ipfs_namespace,
                     mediaType=rdflib.Literal(mime),
                     charset=rdflib.Literal("utf-8"),
                     )
@@ -163,11 +164,11 @@ def build_graph(g, ipfs_client, ipfs_namespace, source_dir, id_base):
                     html = mdproc.convert(blob.decode('utf-8'))
                     for url in mdproc.images:
                         uriref = rdflib.URIRef(url)
-                        if uriref in documents:
-                            logging.debug("%s: found link to %s" % (doc_id, url))
-                            gg.add((doc_id, F.includes, uriref))
+                        if uriref in content:
+                            logging.debug("%s: found link to %s" % (content_id, url))
+                            gg.add((content_id, F.includes, uriref))
                         else:
-                            logging.warning("%s: found link to non-document %s %s" % (doc_id, url, documents))
+                            logging.warning("%s: found link to non-document %s %s" % (content_id, url, content))
 
             except IOError:
                 pass

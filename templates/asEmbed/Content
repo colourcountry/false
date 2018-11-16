@@ -1,5 +1,5 @@
 {% for item in html %}
     <section>
-        {{ item }}
+        {{ item|safe }}
     </section>
 {% endfor %}

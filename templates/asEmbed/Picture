@@ -1,1 +1,1 @@
-<a href="{{ url }}">{{ html }}</a>
+<a href="{{ url }}">{{ html|safe }}</a>

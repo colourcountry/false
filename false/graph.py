@@ -28,6 +28,9 @@ class TemplatableSet(set):
         return TemplatableSet(set.difference(self, other))
 
     def __getattr__(self, a):
+        if a=="__html__":
+            raise AttributeError # jinja2 tries this before escaping
+
         s = TemplatableSet()
         for i in self:
             # Any AttributeError raised inside __getattr__ will get mysteriously swallowed,
@@ -81,7 +84,7 @@ class TemplatableEntity:
         return TemplatableSet(p for p in self.op.get(o.safe, []))
 
     def rel(self, o):
-        leaves = self.rels(o) 
+        leaves = self.rels(o)
         for p in self.op.get(o.safe, []):
             parents = p.walk('rdfs_subPropertyOf')
             for parent in parents:

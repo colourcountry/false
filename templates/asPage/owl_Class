@@ -24,9 +24,7 @@
                 <h3>Narrower</h3>
                 <ul>
                     {% for item in subClass %}
-                            <li>{{ this.rel(item).rdfs_label }} <a href="{{ item.url }}">
-                                {% if item.collectiveLabel %}{{ item.collectiveLabel }}{% else %}{{ item.skos_prefLabel }}{% endif %}
-                            </a></li>
+                        <li>{{ this.rel(item).skos_prefLabel }} <a href="{{ item.url }}" rel="{{ this.rel(item) }}">{{ item.skos_prefLabel }}</a></li>
                     {% endfor %}
                 </ul>
             {% endif %}
@@ -34,9 +32,7 @@
                 <h3>Broader</h3>
                 <ul>
                     {% for item in rdfs_subClassOf %}
-                            <li>{{ this.rel(item).rdfs_label }} <a href="{{ item.url }}">
-                                {% if item.collectiveLabel %}{{ item.collectiveLabel }}{% else %}{{ item.skos_prefLabel }}{% endif %}
-                            </a></li>
+                        <li>{{ this.rel(item).skos_prefLabel }} <a href="{{ item.url }}" rel="{{ this.rel(item) }}">{{ item.skos_prefLabel }}</a></li>
                     {% endfor %}
                 </ul>
             {% endif %}
