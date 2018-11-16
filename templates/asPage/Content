@@ -2,7 +2,7 @@
 
 {% block headline %}
         <h1>{{ skos_prefLabel }}</h1>
-        <h2>a <a href="{{ this.type().url }}">{{ this.type().rdfs_label }}</a></h2>
+        <h2>a <a href="{{ this.type().url }}">{{ this.type().skos_prefLabel }}</a></h2>
         {% if description %}
         <p>
             {{ description }}

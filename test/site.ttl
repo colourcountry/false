@@ -49,9 +49,11 @@ but links and embeds are more powerful than standard Markdown.
 
 ## Linking to things
 
-You can link to any document using its ID with `[](document-id)`.
-Using relative URLs makes it convenient to link things which are in the same domain as the site.
-When linking to a document you don't need to supply link text, as FALSE will use the document's title.
+You can link to any document using its ID: here is one about [](contexts)
+URLs are relative to the base ID supplied to the build process, so you can easily link to the documents you've defined.
+(Absolute URLs are ok, but note that any prefixes defined in the TTL aren't accessible to markdown.)
+
+When linking to a document, if you don't supply link text, FALSE will use the document's title.
 
 [Links to external Web resources](https://daringfireball.net/projects/markdown/syntax) still work in the normal way.
 
@@ -59,10 +61,6 @@ When linking to a document you don't need to supply link text, as FALSE will use
 
 Embeds use the syntax of images in Markdown, but extend it.
 If you've defined an image as a Content (or a sub-type, like Picture), then you can embed it by its ID like this
-
-`![](http://whatever.site/id)`
-
-`![](lingshed)`
 
 ![](lingshed)
 
@@ -73,7 +71,7 @@ This isn't limited to images: any document can be embedded, including other docu
 
 ![](reusable)
 
-You can't embed something that isn't a document. (Strictly 
+You can't embed something that isn't a document, only link to it.
 
 If you just want to embed an image from the internet, you can still do that, but you don't get <s>a cookie</s> the extra features.
 
@@ -86,7 +84,7 @@ If you just want to embed an image from the internet, you can still do that, but
 ;  :markdown
 """
 FALSE uses Jinja2 templates to build its pages.
-"""
+"""@en
 .
 
 <reusable> a :Document

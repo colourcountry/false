@@ -1,10 +1,10 @@
 {% extends "asPage/base" %}
 
 {% set body_class = "ontology" %}
-{% block title %}{{ rdfs_label }}{% endblock %}
+{% block title %}{{ skos_prefLabel }}{% endblock %}
 
 {% block headline %}
-    <h1>{{ rdfs_label }}</h1>
+    <h1>{% if skos_prefLabel %}{{ skos_prefLabel }}{% else %}{{ rdf_label }}{% endif %}</h1>
     <h2>a Class</h2>
     <p>{{ skos_scopeNote }}</p>
     {% if typeOf %}
@@ -24,7 +24,9 @@
                 <h3>Narrower</h3>
                 <ul>
                     {% for item in subClass %}
-                        <li><a href="{{ item.url }}">{{ item.rdfs_label }}</a></li>
+                            <li>{{ this.rel(item).rdfs_label }} <a href="{{ item.url }}">
+                                {% if item.collectiveLabel %}{{ item.collectiveLabel }}{% else %}{{ item.skos_prefLabel }}{% endif %}
+                            </a></li>
                     {% endfor %}
                 </ul>
             {% endif %}
@@ -32,7 +34,9 @@
                 <h3>Broader</h3>
                 <ul>
                     {% for item in rdfs_subClassOf %}
-                        <li><a href="{{ item.url }}">{{ item.rdfs_label }}</a></li>
+                            <li>{{ this.rel(item).rdfs_label }} <a href="{{ item.url }}">
+                                {% if item.collectiveLabel %}{{ item.collectiveLabel }}{% else %}{{ item.skos_prefLabel }}{% endif %}
+                            </a></li>
                     {% endfor %}
                 </ul>
             {% endif %}

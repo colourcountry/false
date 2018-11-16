@@ -4,7 +4,7 @@
 
 {% block headline %}
     <h1>{{ skos_prefLabel }}</h1>
-    <h2>a <a href="{{ this.type().url }}">{{ this.type().rdfs_label }}</a>
+    <h2>a <a href="{{ this.type().url }}">{{ this.type().skos_prefLabel }}</a>
     {% for item in skos_exactMatch %}
         {% if item.id.startswith("http://www.wikidata.org/entity/") %}
           <a class="exactMatch wikidata" href="{{ item.url }}" title="{{ item.id }}">&#x1f310;</a>
@@ -36,7 +36,9 @@
                 <ul>
                     {% for item in skos_related %}
                         {% if depictedIn not in this.rels(item) %}
-                            <li>{{ this.rel(item).rdfs_label }} <a href="{{ item.url }}">{{ item.skos_prefLabel }}</a></li>
+                            <li>{{ this.rel(item).rdfs_label }} <a href="{{ item.url }}">
+                                {% if item.collectiveLabel %}{{ item.collectiveLabel }}{% else %}{{ item.skos_prefLabel }}{% endif %}
+                            </a></li>
                         {% endif %}
                     {% endfor %}
                 </ul>
@@ -45,7 +47,9 @@
                 <h3>Narrower</h3>
                 <ul>
                     {% for item in skos_narrower %}
-                        <li>{{ this.rel(item).rdfs_label }} <a href="{{ item.url }}">{{ item.skos_prefLabel }}</a></li>
+                            <li>{{ this.rel(item).rdfs_label }} <a href="{{ item.url }}">
+                                {% if item.collectiveLabel %}{{ item.collectiveLabel }}{% else %}{{ item.skos_prefLabel }}{% endif %}
+                            </a></li>
                     {% endfor %}
                 </ul>
             {% endif %}
@@ -53,7 +57,9 @@
                 <h3>Broader</h3>
                 <ul>
                     {% for item in skos_broader %}
-                        <li>{{ this.rel(item).rdfs_label }} <a href="{{ item.url }}">{{ item.skos_prefLabel }}</a></li>
+                            <li>{{ this.rel(item).rdfs_label }} <a href="{{ item.url }}">
+                                {% if item.collectiveLabel %}{{ item.collectiveLabel }}{% else %}{{ item.skos_prefLabel }}{% endif %}
+                            </a></li>
                     {% endfor %}
                 </ul>
             {% endif %}

@@ -27,21 +27,22 @@ class ImgRewriter(markdown.treeprocessors.Treeprocessor):
             if src_safe in self.tg.entities:
                 if self.tg.entities[src_safe].embedPath:
                     image.set('src', self.tg.entities[src_safe].embedPath)
+                    image.set('context', F.asEmbed)
                     image.tag = 'false-embed'
                 else:
                     pass # sometimes an image is just an image
 
-        for image in doc.findall('.//a'):
-            href = urllib.parse.urljoin(self.base, image.get('href'))
+        for link in doc.findall('.//a'):
+            href = urllib.parse.urljoin(self.base, link.get('href'))
             href_safe = self.tg.safePath(href)
             logging.debug("Found link with href %s" % href)
             if href_safe in self.tg.entities:
                 if self.tg.entities[href_safe].url:
-                    image.set('href', self.tg.entities[href_safe].url)
-                    if not image.text:
-                        image.text = str(self.tg.entities[href_safe].skos_prefLabel)
+                    link.set('href', self.tg.entities[href_safe].url)
+                    if not link.text:
+                        link.text = str(self.tg.entities[href_safe].skos_prefLabel)
                 else:
-                    pass # sometimes an image is just an image
+                    pass # sometimes a link is just a link
 
 class ImgRewriteExtension(markdown.extensions.Extension):
     def __init__(self, **kwargs):

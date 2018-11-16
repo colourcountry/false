@@ -83,7 +83,7 @@ class TemplatableEntity:
     def rel(self, o):
         leaves = self.rels(o) 
         for p in self.op.get(o.safe, []):
-            parents = p.walk('rdfs_subClassOf')
+            parents = p.walk('rdfs_subPropertyOf')
             for parent in parents:
                 leaves.discard(parent)
         return leaves
@@ -192,7 +192,7 @@ class TemplatableGraph:
             sp = self.safePath(p)
 
             if sp in self.entities:
-                supers = self.entities[sp].walk('rdfs_subClassOf')
+                supers = self.entities[sp].walk('rdfs_subPropertyOf')
                 for pp in supers:
                     inferredTriples.append((s, pp.id, o))
 
