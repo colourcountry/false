@@ -94,8 +94,6 @@ def build_graph(g, cfg):
     gg.bind('rdf', RDF)
     gg.bind('rdfs', RDFS)
     gg.bind('ipfs', cfg.ipfs_namespace)
-    gg.bind('http', HTTP) # this makes URLs look a bit nicer but it relies on namespace bindings being processed in this order
-    gg.bind('https', HTTPS)
 
     doc_types = [x[0] for x in g.query("""select ?t where { ?t rdfs:subClassOf+ :Content }""")]
 

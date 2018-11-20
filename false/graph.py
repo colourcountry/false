@@ -214,7 +214,8 @@ class TemplatableGraph:
                     return p[len(n):]
                 else:
                     return px+'_'+p[len(n):]
-        return "lit_"+re.sub('[^A-Za-z0-9]','_',p)
+        # NOTE: prefixes and protocols can collide
+        return re.sub('[^A-Za-z0-9]','_',p) 
 
     def __contains__(self, e):
         return (e in self.entities)
