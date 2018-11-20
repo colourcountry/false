@@ -85,7 +85,7 @@ def add_rendition(g, content_id, blob, ipfs_client, ipfs_namespace, mediaType, *
     return wrapped_id
 
 
-def build_graph(g, ipfs_client, ipfs_namespace, source_dir, id_base):
+def build_graph(g, cfg):
     gg = rdflib.Graph()
     gg.bind('', F)
     gg.bind('dc', DC)
@@ -93,7 +93,7 @@ def build_graph(g, ipfs_client, ipfs_namespace, source_dir, id_base):
     gg.bind('owl', OWL)
     gg.bind('rdf', RDF)
     gg.bind('rdfs', RDFS)
-    gg.bind('ipfs', ipfs_namespace)
+    gg.bind('ipfs', cfg.ipfs_namespace)
     gg.bind('http', HTTP) # this makes URLs look a bit nicer but it relies on namespace bindings being processed in this order
     gg.bind('https', HTTPS)
 
@@ -101,7 +101,7 @@ def build_graph(g, ipfs_client, ipfs_namespace, source_dir, id_base):
 
     content = {}
     entities = {}
-    mdproc = markdown.Markdown(extensions=[ImgExtExtension(base=id_base)])
+    mdproc = markdown.Markdown(extensions=[ImgExtExtension(base=cfg.id_base)])
 
     for s, p, o in g:
         if s not in entities:
@@ -117,7 +117,7 @@ def build_graph(g, ipfs_client, ipfs_namespace, source_dir, id_base):
             o = entities[o]
 
         if p == F.markdown:
-            blob_id = add_rendition(gg, content[s], o.encode('utf-8'), ipfs_client, ipfs_namespace,
+            blob_id = add_rendition(gg, content[s], o.encode('utf-8'), cfg.ipfs_client, cfg.ipfs_namespace,
                 mediaType=rdflib.Literal('text/markdown'),
                 charset=rdflib.Literal('utf-8'),
             )
@@ -153,9 +153,9 @@ def build_graph(g, ipfs_client, ipfs_namespace, source_dir, id_base):
         for mime, t in FILE_TYPES.items():
             fn = os.path.basename(s+t)
             try:
-                blob = open(os.path.join(source_dir,fn),'rb').read()
+                blob = open(os.path.join(cfg.src_dir,fn),'rb').read()
                 # TODO: refactor these additions to the graph and save out the full RDF
-                blob_id = add_rendition(gg, content_id, blob, ipfs_client, ipfs_namespace,
+                blob_id = add_rendition(gg, content_id, blob, cfg.ipfs_client, cfg.ipfs_namespace,
                     mediaType=rdflib.Literal(mime),
                     charset=rdflib.Literal("utf-8"),
                     )

@@ -3,7 +3,6 @@
 import rdflib, re, os, logging
 
 from rdflib.namespace import RDF, OWL, SKOS
-F = rdflib.Namespace("http://www.colourcountry.net/false/model/")
 
 class TemplatableSet(set):
     '''This set can be referenced in templates.

@@ -3,28 +3,27 @@
 import os, uuid, rdflib, logging, shutil
 
 class MockIPFS:
-    def __init__(self, file_base, url_base):
-        self.base = os.path.join(file_base, 'blob')
-        logging.debug("Mock IPFS running at %s" % self.base)
-        self.namespace = rdflib.Namespace("%s/%s/" % (url_base, 'blob'))
-        os.makedirs(self.base, exist_ok=True)
+    def __init__(self, base_dir):
+        self.base_dir = base_dir
+        logging.debug("Mock IPFS running at %s" % self.base_dir)
+        os.makedirs(self.base_dir, exist_ok=True)
 
     def add_bytes(self, blob):
         r = str(uuid.uuid4())
         logging.debug("Writing blob %s" % r)
-        with open(os.path.join(self.base, r), 'wb') as f:
+        with open(os.path.join(self.base_dir, r), 'wb') as f:
             f.write(blob)
         return r
 
     def cat(self, r):
         logging.debug("Reading blob %s" % r)
-        with open(os.path.join(self.base, r[-36:]), 'rb') as f:
+        with open(os.path.join(self.base_dir, r[-36:]), 'rb') as f:
             return f.read()
 
     def get(self, r):
         try:
-            shutil.copyfile(os.path.join(self.base, r[-36:]), os.path.abspath(r[-36:]))
+            shutil.copyfile(os.path.join(self.base_dir, r[-36:]), os.path.abspath(r[-36:]))
             logging.debug("Copying blob %s" % r)
         except shutil.SameFileError:
-            logging.debug("Blob %s already available" % r)
+            logging.debug("Blob %s is already available" % r)
             pass

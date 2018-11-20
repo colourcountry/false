@@ -104,6 +104,8 @@ def get_html_body_for_rendition(tg, e, r, ipfs_client, markdown_processor, ipfs_
 
     mt = r.mediaType
 
+    save_ipfs(ipfs_client, r, ipfs_dir)
+
     logging.debug('%s: found %s rendition' % (e, mt))
 
     if rdflib.Literal('text/html') in mt:
@@ -114,7 +116,6 @@ def get_html_body_for_rendition(tg, e, r, ipfs_client, markdown_processor, ipfs_
 
     for m in mt:
         if m.startswith('image/'):
-            save_ipfs(ipfs_client, r, ipfs_dir)
             return '<img src="%s" alt="%s">' % (r.blobURL, e.description)
 
     logging.info("%s: media type %s is not a suitable body" % (e, mt))
@@ -130,15 +131,15 @@ def get_html_body(tg, e, ipfs_client, markdown_processor, ipfs_dir):
 
     return '<!-- non-renderable item %s (tried %s) -->' % (e, available.join(', '))
 
-def publish(g, template_dir, output_dir, url_base, ipfs_client, home_site, id_base):
+def publish_graph(g, cfg):
     tg = TemplatableGraph(g)
 
     jinja_e = jinja2.Environment(
-        loader=jinja2.FileSystemLoader('templates'),
+        loader=jinja2.FileSystemLoader(cfg.template_dir),
         autoescape=True
     )
 
-    markdown_processor = markdown.Markdown(output_format="html5", extensions=[ImgRewriteExtension(tg=tg, base=id_base)])
+    markdown_processor = markdown.Markdown(output_format="html5", extensions=[ImgRewriteExtension(tg=tg, base=cfg.id_base)])
 
     embed_html = {}
     stage = {}
@@ -164,12 +165,12 @@ def publish(g, template_dir, output_dir, url_base, ipfs_client, home_site, id_ba
                         logging.debug("%s: no template at %s" % (e, t_path))
                         continue
 
-                    dest = get_page_path(e_safe, ctx_safe, e_type, output_dir)
-                    url = get_page_url(e_safe, ctx_safe, e_type, url_base)
+                    dest = get_page_path(e_safe, ctx_safe, e_type, cfg.output_dir)
+                    url = get_page_url(e_safe, ctx_safe, e_type, cfg.url_base)
 
                     logging.debug('%s: will render for %s as %s -> %s' % (e, ctx, e_type, dest))
                     stage[e][ctx] = (t, dest)
-                    if e.id == rdflib.URIRef(home_site) and ctx == F.asPage:
+                    if e.id == rdflib.URIRef(cfg.home_site) and ctx == F.asPage:
                         home_page = url
 
                     e_types = None # found a renderable type
@@ -217,7 +218,7 @@ def publish(g, template_dir, output_dir, url_base, ipfs_client, home_site, id_ba
                         break
                     logging.debug("%s: %s looks good" % (e, ed))
                 else:
-                    body = get_html_body(tg, e, ipfs_client, markdown_processor, os.path.join(output_dir, 'ipfs'))
+                    body = get_html_body(tg, e, cfg.ipfs_client, markdown_processor, cfg.ipfs_dir)
 
                     body = re.sub("<p>\s*<false-embed([^>]*)>\s*</false-embed>\s*</p>", lambda m: resolve_embed(m, tg, e, True), body)
                     body = re.sub("<p>\s*<false-embed([^>]*)>\s*</p>", lambda m: resolve_embed(m, tg, e, True), body)

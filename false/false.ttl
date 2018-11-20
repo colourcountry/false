@@ -1,3 +1,5 @@
+# false.ttl - defines those statements which are required for FALSE to work
+
 @prefix : <http://id.colourcountry.net/false/> .
 @prefix owl:   <http://www.w3.org/2002/07/owl#> .
 @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
@@ -7,21 +9,31 @@
 
 skos:prefLabel rdfs:subPropertyOf rdfs:label .
 
-:InverseDatatypeProperty a owl:Class
-;  skos:prefLabel "inverse of a datatype property"@en
+:subClass a rdf:Property
+;  owl:inverseOf rdfs:subClassOf
 .
 
-:CreativeWork a owl:Class
-;  skos:prefLabel "creative work"@en
-;  :collectiveLabel "creative works"@en
-;  rdfs:subClassOf skos:Concept
+:subProperty a rdf:Property
+;  owl:inverseOf rdfs:subPropertyOf
 .
 
-:Project a owl:Class
-;  skos:prefLabel "project"@en
-;  :collectiveLabel "projects"@en
-;  rdfs:subClassOf :CreativeWork
-;  skos:scopeNote "A creative activity with an overall focus or intent"@en
+:typeOf a rdf:Property
+;  owl:inverseOf rdf:type
+.
+
+:domainOf a rdf:Property
+;  owl:inverseOf rdfs:domain
+.
+
+:rangeOf a rdf:Property
+;  owl:inverseOf rdfs:range
+.
+
+:collectiveLabel a owl:DatatypeProperty
+;  skos:prefLabel "collective label"@en
+;  rdfs:domain owl:Class
+;  rdfs:range xsd:string
+;  rdfs:subPropertyOf rdfs:label
 .
 
 :Content a owl:Class
@@ -31,37 +43,10 @@ skos:prefLabel rdfs:subPropertyOf rdfs:label .
 ;  skos:scopeNote "A work which can be rendered in two-dimensional visual form, especially on or as a Web site"@en
 .
 
-:Site a owl:Class
-;  skos:prefLabel "Web site"@en
-;  :collectiveLabel "Web sites"@en
-;  rdfs:subClassOf :Content
-.
-
 :Page a owl:Class
 ;  skos:prefLabel "Web page"@en
 ;  :collectiveLabel "Web pages"@en
 ;  rdfs:subClassOf :Content
-.
-
-:Document a owl:Class
-;  skos:prefLabel "document"@en
-;  :collectiveLabel "documents"@en
-;  rdfs:subClassOf :Content
-;  skos:scopeNote "A work which is intended to be read. Normally text based but may also be made of images (cartoon, graphic novel...)"@en
-.
-
-:Picture a owl:Class
-;  skos:prefLabel "picture"@en
-;  :collectiveLabel "pictures"@en
-;  rdfs:subClassOf :Content
-;  skos:scopeNote "A work which is intended to be viewed, whose meaning does not rely on the way it changes through time."@en
-.
-
-:Video a owl:Class
-;  skos:prefLabel "video"@en
-;  :collectiveLabel "videos"@en
-;  rdfs:subClassOf :Content
-;  skos:scopeNote "A work which is intended to be watched."@en
 .
 
 :Media a owl:Class
@@ -81,17 +66,6 @@ skos:prefLabel rdfs:subPropertyOf rdfs:label .
 
 :asEmbed a :Context
 ;  skos:prefLabel "embedded context"@en
-.
-
-:asLink a :Context
-;  skos:prefLabel "link context"@en
-.
-
-:collectiveLabel a owl:DatatypeProperty
-;  skos:prefLabel "collective label"@en
-;  rdfs:domain owl:Class
-;  rdfs:range xsd:string
-;  rdfs:subPropertyOf rdfs:label
 .
 
 :mediaType a owl:DatatypeProperty
@@ -123,17 +97,6 @@ skos:prefLabel rdfs:subPropertyOf rdfs:label .
 ;  owl:inverseOf :rendition
 .
 
-:description a owl:DatatypeProperty
-;  skos:prefLabel "description"@en
-;  rdfs:domain skos:Concept
-;  rdfs:range xsd:string
-.
-
-:descriptionOf a :InverseDatatypeProperty
-;  skos:prefLabel "description of"@en
-;  owl:inverseOf :description
-.
-
 :markdown a owl:DatatypeProperty
 ;  skos:prefLabel "markdown"@en
 ;  rdfs:domain skos:Concept
@@ -163,26 +126,6 @@ skos:prefLabel rdfs:subPropertyOf rdfs:label .
 ;  skos:prefLabel "published"@en
 ;  rdfs:domain :Document
 ;  rdfs:range xsd:dateTime
-.
-
-:updated a owl:DatatypeProperty
-;  skos:prefLabel "updated"@en
-;  rdfs:domain skos:Concept
-;  rdfs:range xsd:dateTime
-.
-
-
-:features a owl:ObjectProperty
-;  skos:prefLabel "features"@en
-;  rdfs:domain :Site
-;  rdfs:range :CreativeWork
-;  rdfs:subPropertyOf skos:narrower
-.
-
-:featuresOn a owl:ObjectProperty
-;  skos:prefLabel "features on"@en
-;  rdfs:subPropertyOf skos:broader
-;  owl:inverseOf :features
 .
 
 :includes a owl:ObjectProperty
@@ -222,51 +165,5 @@ skos:prefLabel rdfs:subPropertyOf rdfs:label .
 ;  skos:prefLabel "mentioned in"@en
 ;  rdfs:subPropertyOf skos:related
 ;  owl:inverseOf :mentions
-.
-
-:about a owl:ObjectProperty
-;  skos:prefLabel "about"@en
-;  rdfs:domain :CreativeWork
-;  rdfs:range skos:Concept
-;  rdfs:subPropertyOf skos:related
-.
-
-:hasAbout a owl:ObjectProperty
-;  skos:prefLabel ""@en # !
-;  rdfs:subPropertyOf skos:related
-;  owl:inverseOf :about
-.
-
-:depicts a owl:ObjectProperty
-;  skos:prefLabel "depicts"@en
-;  rdfs:domain :Picture
-;  rdfs:range skos:Concept
-;  rdfs:subPropertyOf :about
-.
-
-:depictedIn a owl:ObjectProperty
-;  skos:prefLabel "depicted in"@en
-;  owl:inverseOf :depicts
-;  rdfs:subPropertyOf :hasAbout
-.
-
-:subClass a rdf:Property
-;  owl:inverseOf rdfs:subClassOf
-.
-
-:subProperty a rdf:Property
-;  owl:inverseOf rdfs:subPropertyOf
-.
-
-:typeOf a rdf:Property
-;  owl:inverseOf rdf:type
-.
-
-:domainOf a rdf:Property
-;  owl:inverseOf rdfs:domain
-.
-
-:rangeOf a rdf:Property
-;  owl:inverseOf rdfs:range
 .
 
