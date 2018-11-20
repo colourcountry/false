@@ -117,6 +117,8 @@ def build_graph(g, cfg):
             o = entities[o]
 
         if p == F.markdown:
+            if s not in content:
+                raise ValidationError("%s: entity has `markdown` property but is not any of the defined document types (%s %s)" % (s, F.Content, " ".join(doc_types)))
             blob_id = add_rendition(gg, content[s], o.encode('utf-8'), cfg.ipfs_client, cfg.ipfs_namespace,
                 mediaType=rdflib.Literal('text/markdown'),
                 charset=rdflib.Literal('utf-8'),

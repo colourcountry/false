@@ -7,7 +7,35 @@
 @prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
 
-skos:prefLabel rdfs:subPropertyOf rdfs:label .
+# Bootstrap some stuff
+# FIXME: are these actually true
+
+rdfs:label a owl:DatatypeProperty .
+
+skos:prefLabel rdfs:subPropertyOf rdfs:label
+;  rdfs:domain skos:Concept
+;  rdfs:range xsd:string
+.
+
+skos:Concept a owl:Class
+;  skos:prefLabel "Concept"@en
+.
+
+skos:related a owl:ObjectProperty, owl:SymmetricProperty
+;  skos:prefLabel "related to"@en
+.
+
+skos:narrower a owl:ObjectProperty
+;  skos:prefLabel "has narrower"@en
+;  owl:inverseOf skos:broader
+.
+
+skos:broader a owl:ObjectProperty
+;  skos:prefLabel "has broader"@en
+;  owl:inverseOf skos:narrower
+.
+
+# FALSE core ontology begins.
 
 :subClass a rdf:Property
 ;  owl:inverseOf rdfs:subClassOf
@@ -166,4 +194,3 @@ skos:prefLabel rdfs:subPropertyOf rdfs:label .
 ;  rdfs:subPropertyOf skos:related
 ;  owl:inverseOf :mentions
 .
-

@@ -106,3 +106,5 @@
 ;  owl:inverseOf :depicts
 ;  rdfs:subPropertyOf :hasAbout
 .
+
+
