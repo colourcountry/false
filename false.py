@@ -19,18 +19,17 @@ if __name__=="__main__":
                           home_site=os.environ["FALSE_HOME_SITE"],
                           id_base=os.environ["FALSE_ID_BASE"])
 
+    ipfs_namespace = rdflib.Namespace("/ipfs/")
+
     try:
         ipfs_client = ipfsapi.connect('127.0.0.1',5001)
-        ipfs_namespace = rdflib.Namespace("/ipfs/")
         cfg.setIPFS(ipfs_client, ipfs_namespace, "ipfs")
     except ipfsapi.exceptions.ConnectionError:
-        raise SystemExit("No IPFS daemon running.")
+        logging.info("No IPFS daemon running. Trying to go ahead with mockipfs")
 
-        #Do I actually want a mock IPFS?
-        #import false.mockipfs
-        #ipfs_client = false.mockipfs.MockIPFS("blob")
-        #ipfs_namespace = rdflib.Namespace(urllib.parse.urljoin(cfg.url_base, "/blob/"))
-        #cfg.setIPFS(ipfs_client, ipfs_namespace, "blob")
+        import false.mockipfs
+        ipfs_client = false.mockipfs.MockIPFS("ipfs")
+        cfg.setIPFS(ipfs_client, ipfs_namespace, "ipfs")
 
     cfg.validate()
 
