@@ -9,7 +9,7 @@ class MockIPFS:
         os.makedirs(self.base_dir, exist_ok=True)
 
     def add_bytes(self, blob):
-        cp = subprocess.run(['ipfs', 'add', '-Q', '-'], input=blob, capture_output=True)
+        cp = subprocess.run(['ipfs', 'add', '-Q', '-'], input=blob, stdout=subprocess.PIPE)
         if cp.returncode != 0:
             raise OSError("Error running ipfs add: %s" % cp.stderr)
         return cp.stdout.decode('us-ascii').strip()
@@ -17,13 +17,13 @@ class MockIPFS:
     def object_put(self, ipld_blob):
         i = ipld_blob.read()
         logging.debug(i)
-        cp = subprocess.run(['ipfs', 'object', 'put', '-q', '-'], input=i, capture_output=True)
+        cp = subprocess.run(['ipfs', 'object', 'put', '-q', '-'], input=i, stdout=subprocess.PIPE)
         if cp.returncode != 0:
             raise OSError("Error running ipfs object put: %s" % cp.stderr)
         return {"Hash": cp.stdout.decode('us-ascii').strip()}
 
     def cat(self, nuri):
-        cp = subprocess.run(['ipfs', 'cat', nuri], capture_output=True)
+        cp = subprocess.run(['ipfs', 'cat', nuri], stdout=subprocess.PIPE)
         if cp.returncode != 0:
             raise OSError("Error running ipfs cat: %s" % cp.stderr)
         return cp.stdout
