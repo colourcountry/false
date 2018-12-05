@@ -41,7 +41,7 @@ class TemplatableSet(set):
                 else:
                     raise ValueError('Attribute %s of set element %s was %s, not a set' % (a, repr(i), repr(g)))
             else:
-                raise ValueError('Set element %s did not have attribute %s' % (repr(i), a))
+                pass # this setelement didn't have the requested attribute :shrug:
         return s
 
 class TemplatableEntity:

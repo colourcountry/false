@@ -13,7 +13,11 @@ FILE_TYPES = { "text/html": ".html",
                "text/plain": ".txt",
                "text/markdown": ".md",
                "image/jpeg": ".jpg",
-               "image/png": ".png" }
+               "image/png": ".png",
+               "application/pdf": ".pdf" }
+
+CONTENT_NEW = 0
+CONTENT_READY = 1
 
 class ValidationError(ValueError):
     pass
@@ -54,6 +58,8 @@ def add_rendition(g, content_id, blob, ipfs_client, ipfs_namespace, mediaType, *
         blob_filename = doc_basename+FILE_TYPES[str(mediaType)]
     else:
         blob_filename = "blob"+FILE_TYPES[str(mediaType)]
+
+    # TODO: spot blank nodes and remove the filename (since it's not guaranteed to be stable)
 
     info = rdflib.Graph()
     info.bind('', F)
@@ -108,7 +114,7 @@ def build_graph(g, cfg):
             if o == F.Content or o in doc_types:
                 logging.debug("Found content %s" % s)
                 entities[s] = s
-                content[s] = s
+                content[s] = CONTENT_NEW
 
     for s, p, o in g:
         if o in entities:
@@ -117,41 +123,42 @@ def build_graph(g, cfg):
         if p == F.markdown:
             if s not in content:
                 raise ValidationError("%s: entity has `markdown` property but is not any of the defined document types (%s %s)" % (s, F.Content, " ".join(doc_types)))
-            blob_id = add_rendition(gg, content[s], o.encode('utf-8'), cfg.ipfs_client, cfg.ipfs_namespace,
+            blob_id = add_rendition(gg, s, o.encode('utf-8'), cfg.ipfs_client, cfg.ipfs_namespace,
                 mediaType=rdflib.Literal('text/markdown'),
                 charset=rdflib.Literal('utf-8'),
             )
+            content[s] = CONTENT_READY
 
             html = mdproc.convert(o)
             for url in mdproc.images:
                 uriref = rdflib.URIRef(url)
                 if uriref in content:
-                    logging.debug("%s: found embed of %s" % (content[s], url))
-                    gg.add((content[s], F.includes, uriref))
+                    logging.debug("%s: found embed of %s" % (s, url))
+                    gg.add((s, F.includes, uriref))
                 elif uriref in entities:
-                    raise ValidationError("%s: tried to embed non-document %s" % (content[s], url))
+                    raise ValidationError("%s: tried to embed non-document %s" % (s, url))
                 else:
-                    logging.debug("%s: found embed of Web document %s" % (content[s], url))
+                    logging.debug("%s: found embed of Web document %s" % (s, url))
 
             for url in mdproc.links:
                 uriref = rdflib.URIRef(url)
                 if uriref in content:
-                    logging.debug("%s: found link to %s" % (content[s], url))
-                    gg.add((content[s], F.links, uriref))
+                    logging.debug("%s: found link to %s" % (s, url))
+                    gg.add((s, F.links, uriref))
                 elif uriref in entities:
-                    logging.info("%s: found mention of %s" % (content[s], url))
-                    gg.add((content[s], F.mentions, uriref))
+                    logging.info("%s: found mention of %s" % (s, url))
+                    gg.add((s, F.mentions, uriref))
                 else:
-                    logging.debug("%s: found link to Web document %s" % (content[s], url))
+                    logging.debug("%s: found link to Web document %s" % (s, url))
 
         else:
-            gg.add((entities[s], p, o))
+            gg.add((s, p, o))
 
-    for s, content_id in content.items():
+    for content_id in content:
         gg.add((content_id, F.published, rdflib.Literal(datetime.datetime.now().isoformat(), datatype=XSD.dateTime)))
 
         for mime, t in FILE_TYPES.items():
-            fn = os.path.basename(s+t)
+            fn = os.path.basename(content_id+t)
             try:
                 blob = open(os.path.join(cfg.src_dir,fn),'rb').read()
                 # TODO: refactor these additions to the graph and save out the full RDF
@@ -159,6 +166,7 @@ def build_graph(g, cfg):
                     mediaType=rdflib.Literal(mime),
                     charset=rdflib.Literal("utf-8"),
                     )
+                content[content_id] = CONTENT_READY
 
                 if mime == 'text/markdown':
                     html = mdproc.convert(blob.decode('utf-8'))
@@ -171,6 +179,10 @@ def build_graph(g, cfg):
                             logging.warning("%s: found link to non-document %s %s" % (content_id, url, content))
 
             except IOError:
-                pass
+                logging.debug("%s: nothing at %s" % (content_id, fn))
+
+    for content_id in content:
+        if content[content_id] != CONTENT_READY:
+            raise ValueError("%s: no renditions available, cannot publish" % content_id)
 
     return gg

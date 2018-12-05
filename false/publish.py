@@ -118,6 +118,9 @@ def get_html_body_for_rendition(tg, e, r, ipfs_client, markdown_processor, ipfs_
         if m.startswith('image/'):
             return '<img src="%s" alt="%s">' % (r.blobURL, e.description)
 
+    if rdflib.Literal('application/pdf') in mt:
+        return '<div class="__embed__"><embed src="%s" type="application/pdf"></object></div>' % r.blobURL
+
     logging.info("%s: media type %s is not a suitable body" % (e, mt))
     return None
 
