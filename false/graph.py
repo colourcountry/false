@@ -26,6 +26,11 @@ class TemplatableSet(set):
     def difference(self, other):
         return TemplatableSet(set.difference(self, other))
 
+    def pick(self):
+        '''Return one of the items in the set, don't care which.'''
+        for i in self:
+            return i
+
     def __getattr__(self, a):
         if a=="__html__":
             raise AttributeError # jinja2 tries this before escaping

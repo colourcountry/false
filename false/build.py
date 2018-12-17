@@ -46,6 +46,15 @@ class ImgExtExtension(markdown.extensions.Extension):
         img_ext = ImgExtractor(md, self.getConfig('base'))
         md.treeprocessors.add('imgext', img_ext, '>inline')
 
+def url_to_path(url, path=''):
+    if not url:
+        return path
+    p, s = posixpath.split(url)
+    if path:
+        return url_to_path(p, os.path.join(s, path))
+    else:
+        return url_to_path(p, s)
+
 def add_rendition(g, content_id, blob, ipfs_client, ipfs_namespace, mediaType, **properties):
     if not ipfs_client:
         logging.warning("No IPFS, can't add rendition info to document %s" % content_id)
@@ -89,7 +98,6 @@ def add_rendition(g, content_id, blob, ipfs_client, ipfs_namespace, mediaType, *
     logging.info("%s: adding rendition %s" % (content_id, wrapped_id))
     g.add((content_id, F.rendition, wrapped_id))
     return wrapped_id
-
 
 def build_graph(g, cfg):
     gg = rdflib.Graph()
@@ -157,8 +165,11 @@ def build_graph(g, cfg):
     for content_id in content:
         gg.add((content_id, F.published, rdflib.Literal(datetime.datetime.now().isoformat(), datatype=XSD.dateTime)))
 
+        if not content_id.startswith(cfg.id_base):
+            continue # id is not ours, so nowhere to pull files from
+
         for mime, t in FILE_TYPES.items():
-            fn = os.path.basename(content_id+t)
+            fn = url_to_path(content_id[len(cfg.id_base):])+t
             try:
                 blob = open(os.path.join(cfg.src_dir,fn),'rb').read()
                 # TODO: refactor these additions to the graph and save out the full RDF
