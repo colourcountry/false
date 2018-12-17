@@ -44,7 +44,7 @@ class ImgRewriter(markdown.treeprocessors.Treeprocessor):
             if href_safe in self.tg.entities:
                 e = self.tg.entities[href_safe]
                 if e.url:
-                    link.set('href', str(e.url))
+                    link.set('href', e.url)
                     if not link.text:
                         link.text = str(e.skos_prefLabel)
                     if F.Content not in e.rdf_type: # FIXME: duplicates logic from build
@@ -108,18 +108,20 @@ def get_html_body_for_rendition(tg, e, r, ipfs_client, markdown_processor, ipfs_
 
     logging.debug('%s: found %s rendition' % (e, mt))
 
-    if rdflib.Literal('text/html') in mt:
-        return ipfs_client.cat(r.id).decode(get_charset(r, e, mt))
-
     if rdflib.Literal('text/markdown') in mt:
+        # markdown is a partial page so safe to embed
         return markdown_processor.convert(ipfs_client.cat(r.id).decode(get_charset(r, e, mt)))
 
     for m in mt:
         if m.startswith('image/'):
             return '<img src="%s" alt="%s">' % (r.blobURL, e.description)
 
+    if rdflib.Literal('text/html') in mt:
+        # html is assumed to be a complete page
+        return '<div class="__embed__"><iframe src="%s"></iframe></div>' % r.blobURL
+
     if rdflib.Literal('application/pdf') in mt:
-        return '<div class="__embed__"><embed src="%s" type="application/pdf"></object></div>' % r.blobURL
+        return '<div class="__embed__"><embed src="%s" type="application/pdf"></embed></div>' % r.blobURL
 
     logging.info("%s: media type %s is not a suitable body" % (e, mt))
     return None

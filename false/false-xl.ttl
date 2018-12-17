@@ -51,6 +51,12 @@
 ;  skos:prefLabel "link context"@en
 .
 
+:credit a owl:DatatypeProperty
+;   skos:prefLabel "credit"@en
+;   rdfs:domain :CreativeWork
+;   rdfs:range xsd:string
+.
+
 :description a owl:DatatypeProperty
 ;  skos:prefLabel "description"@en
 ;  rdfs:domain skos:Concept
