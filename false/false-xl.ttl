@@ -7,11 +7,6 @@
 @prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
 
-:CreativeWork a owl:Class
-;  skos:prefLabel "creative work"@en
-;  :collectiveLabel "creative works"@en
-;  rdfs:subClassOf skos:Concept
-.
 
 :Project a owl:Class
 ;  skos:prefLabel "project"@en
@@ -57,13 +52,13 @@
 ;   rdfs:range xsd:string
 .
 
-:description a owl:DatatypeProperty
+:description a owl:ObjectProperty
 ;  skos:prefLabel "description"@en
 ;  rdfs:domain skos:Concept
-;  rdfs:range xsd:string
+;  rdfs:range :Document
 .
 
-:descriptionOf a :InverseDatatypeProperty
+:descriptionOf a owl:ObjectProperty
 ;  skos:prefLabel "description of"@en
 ;  owl:inverseOf :description
 .

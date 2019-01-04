@@ -1,4 +1,4 @@
-{% extends "asPage/base" %}
+{% extends "page/base" %}
 
 {% block title %}{{ skos_prefLabel }}{% endblock %}
 
@@ -20,7 +20,7 @@
     {% endif %}
 
     {% for item in depictedIn %}
-        <p><a rel="{{ this.rel(item) }}" href="{{ item.url }}">{{ item.html|safe }}</a></p>
+        <p><a rel="{{ this.rel(item) }}" href="{{ item.url }}">{{ item.asEmbed|safe }}</a></p>
     {% endfor %}
 
     {% if skos_closeMatch %}

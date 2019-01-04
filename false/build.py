@@ -16,9 +16,9 @@ FILE_TYPES = { "text/html": ".html",
                "image/png": ".png",
                "application/pdf": ".pdf" }
 
-CONTEXTS = { ".asEmbed.": F.asEmbed,
-             ".asPage.": F.asPage,
-             "": F.asDownload }
+CONTEXTS = { ".embed.": F.embed,
+             ".page.": F.page,
+             "": F.download }
 
 CONTENT_NEW = 0
 CONTENT_READY = 1

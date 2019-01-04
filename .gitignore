@@ -105,6 +105,6 @@ venv.bak/
 
 pub/
 ipfs/
-.asEmbed.*
-.asPage.*
+.embed.*
+.page.*
 

@@ -1,4 +1,4 @@
-{% extends "asPage/Content" %}
+{% extends "page/Content" %}
 
 {% block links %}
             {% if features %}

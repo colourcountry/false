@@ -64,6 +64,12 @@ skos:broader a owl:ObjectProperty
 ;  rdfs:subPropertyOf rdfs:label
 .
 
+:CreativeWork a owl:Class
+;  skos:prefLabel "creative work"@en
+;  :collectiveLabel "creative works"@en
+;  rdfs:subClassOf skos:Concept
+.
+
 :Content a owl:Class
 ;  skos:prefLabel "content"@en
 ;  :collectiveLabel "content"@en
@@ -71,9 +77,9 @@ skos:broader a owl:ObjectProperty
 ;  skos:scopeNote "A work which can be rendered in two-dimensional visual form, especially on or as a Web site"@en
 .
 
-:Page a owl:Class
-;  skos:prefLabel "Web page"@en
-;  :collectiveLabel "Web pages"@en
+:WebPage a owl:Class
+;  skos:prefLabel "web page"@en
+;  :collectiveLabel "web pages"@en
 ;  rdfs:subClassOf :Content
 .
 
@@ -88,15 +94,15 @@ skos:broader a owl:ObjectProperty
 ;  rdfs:subClassOf skos:Concept
 .
 
-:asEmbed a :Context
-;  skos:prefLabel "embedded context"@en
+:embed a :Context
+;  skos:prefLabel "embed context"@en
 .
 
-:asPage a :Context
+:page a :Context
 ;  skos:prefLabel "page context"@en
 .
 
-:asDownload a :Context
+:download a :Context
 ;  skos:prefLabel "download context"@en
 .
 
@@ -141,8 +147,16 @@ skos:broader a owl:ObjectProperty
 ;  rdfs:range xsd:string
 .
 
-:html a owl:DatatypeProperty
+:asPage a owl:DatatypeProperty
 ;  skos:prefLabel "HTML"@en
+;  skos:related :default
+;  rdfs:domain skos:Concept
+;  rdfs:range xsd:string
+.
+
+:asEmbed a owl:DatatypeProperty
+;  skos:prefLabel "HTML for embedding"@en
+;  skos:related :embed
 ;  rdfs:domain skos:Concept
 ;  rdfs:range xsd:string
 .
@@ -159,10 +173,9 @@ skos:broader a owl:ObjectProperty
 ;  rdfs:range xsd:anyURI
 .
 
-
 :published a owl:DatatypeProperty
 ;  skos:prefLabel "published"@en
-;  rdfs:domain :Document
+;  rdfs:domain :Content
 ;  rdfs:range xsd:dateTime
 .
 

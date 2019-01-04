@@ -12,6 +12,8 @@ EXTERNAL_LINKS = {
 
 F = rdflib.Namespace("http://id.colourcountry.net/false/")
 
+HTML_FOR_CONTEXT = { F.embed: F.asEmbed, F.page: F.asPage }
+
 class PublishError(ValueError):
     pass
 
@@ -30,7 +32,7 @@ class ImgRewriter(markdown.treeprocessors.Treeprocessor):
             if src_safe in self.tg.entities:
                 if self.tg.entities[src_safe].embedPath:
                     image.set('src', self.tg.entities[src_safe].embedPath)
-                    image.set('context', F.asEmbed)
+                    image.set('context', F.embed)
                     image.tag = 'false-embed'
                 else:
                     raise PublishError("don't have an embeddable version of %s" % src)
@@ -168,7 +170,7 @@ def publish_graph(g, cfg):
     for e_safe, e in tg.entities.items():
         stage[e] = {}
 
-        for ctx in (F.asPage, F.asEmbed, F.asDownload): # TODO enumerate contexts that are in use
+        for ctx in (F.page, F.embed):
 
             ctx_safe = tg.safePath(ctx)
             # use the most direct type because we need to go up in a specific order
@@ -189,23 +191,23 @@ def publish_graph(g, cfg):
 
                     logging.debug('%s: will render for %s as %s -> %s' % (e, ctx, e_type, dest))
                     stage[e][ctx] = (t, dest)
-                    if e.id == rdflib.URIRef(cfg.home_site) and ctx == F.asPage:
+                    if e.id == rdflib.URIRef(cfg.home_site) and ctx == F.page:
                         home_page = url
 
                     e_types = None # found a renderable type
 
-                    if ctx == F.asPage:
+                    if ctx == F.page:
                         if e.url:
                             # graph specified the URL, don't make one
                             break
-                        elif F.Page in e.rdf_type:
+                        elif F.WebPage in e.rdf_type:
                             # object is a Web page whose ID is its URL
                             tg.add(e.id, F.url, e.id)
                             break
                         else:
                             # add the computed URL of the item as a full page, for templates to pick up
                             tg.add(e.id, F.url, rdflib.Literal(url))
-                    elif ctx == F.asEmbed:
+                    elif ctx == F.embed:
                         # add the embed path, for the post-template stitcher to pick up
                         tg.add(e.id, F.embedPath, rdflib.Literal(dest))
 
@@ -230,8 +232,8 @@ def publish_graph(g, cfg):
 
 
             for embed in e.includes:
-                if F.asEmbed in stage[embed]:
-                    et, ed = stage[embed][F.asEmbed]
+                if F.embed in stage[embed]:
+                    et, ed = stage[embed][F.embed]
                 else:
                     raise PublishError("%s: need %s but there is no way to embed it" % (e, embed))
                 if ed in to_write:
@@ -248,9 +250,8 @@ def publish_graph(g, cfg):
                     body = re.sub("<false-embed([^>]*)>\s*</false-embed>", lambda m: resolve_embed(m, tg, e, True), body)
                     body = re.sub("<false-embed([^>]*)>", lambda m: resolve_embed(m, tg, e, False), body)
 
-                    tg.add(e.id, F.html, rdflib.Literal(body))
+                    tg.add(e.id, HTML_FOR_CONTEXT[ctx], rdflib.Literal(body))
                     content = t.render(e.po)
-                    tg.wipe(e.id, F.html) # html property depends on context and is only available to the template
 
                     os.makedirs(os.path.dirname(dest), exist_ok=True)
                     logging.debug("%s: writing %s" % (e, dest))

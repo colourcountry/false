@@ -8,7 +8,7 @@
 
 <lingshed> a :Picture
 ;  skos:prefLabel "Photo of Lingshed Gonpa"@en
-;  :description "Lingshed Gonpa seen from below. Two solar furnaces and a goat kid are visible on a terrace outside."
+;  :description [ a :Document; :markdown """Lingshed Gonpa seen from below. Two solar furnaces and a goat kid are visible on a terrace outside.""" ]
 ;  :caption "Lingshed Gonpa."
 ;  :updated "2018-10-30T13:14:00.000Z"^^xsd:dateTime
 .
@@ -68,14 +68,14 @@ gmaps:Lingshed%20Gompa :about w:LingshedGonpa .
 #  If I stopped here, FALSE would create its own pages describing these web pages.
 #  I need to tell FALSE not to bother.
 
-gmaps:Lingshed%20Gompa a :Page
+gmaps:Lingshed%20Gompa a :WebPage
 #  This is just a Web page. I don't want to assert anything more than that, so the ID is the same as the URL.
-#  FALSE won't create a descriptive page for any :Page, but will link direct to the URL.
+#  FALSE won't create a descriptive page for any :WebPage, but will link direct to the URL.
 #  But I can still say things about the page, like how it should be described in a link.
 ;  skos:prefLabel "Lingshed Gonpa on Google Maps"
 .
 
-wiki-en:Lingshed_Monastery a :Page
+wiki-en:Lingshed_Monastery a :WebPage
 ;  skos:prefLabel "Lingshed Gonpa on Wikipedia"
 .
 
@@ -95,7 +95,7 @@ w:India a w:Place
 ;  skos:exactMatch wiki:Q668
 .
 
-gmaps:India a :Page ; :about w:India ; skos:prefLabel "India on Google Maps" .
+gmaps:India a :WebPage ; :about w:India ; skos:prefLabel "India on Google Maps" .
 
 wiki:Q668 :url wikipage:Q668 ; skos:prefLabel "India on Wikidata" .
 

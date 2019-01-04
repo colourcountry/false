@@ -1,4 +1,4 @@
-{% extends "asPage/base" %}
+{% extends "page/base" %}
 
 {% set body_class = "ontology" %}
 {% block title %}{{ skos_prefLabel }}{% endblock %}

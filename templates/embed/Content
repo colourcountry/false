@@ -1,0 +1,5 @@
+{% for html in asEmbed %}
+    <section>
+        {{ html|safe }}
+    </section>
+{% endfor %}
