@@ -88,12 +88,16 @@ skos:broader a owl:ObjectProperty
 ;  rdfs:subClassOf skos:Concept
 .
 
+:asEmbed a :Context
+;  skos:prefLabel "embedded context"@en
+.
+
 :asPage a :Context
 ;  skos:prefLabel "page context"@en
 .
 
-:asEmbed a :Context
-;  skos:prefLabel "embedded context"@en
+:asDownload a :Context
+;  skos:prefLabel "download context"@en
 .
 
 :mediaType a owl:DatatypeProperty
@@ -112,6 +116,12 @@ skos:broader a owl:ObjectProperty
 ;  skos:prefLabel "blob URL"@en
 ;  rdfs:domain :Media
 ;  rdfs:range xsd:anyURI
+.
+
+:intendedUse a owl:ObjectProperty
+;  skos:prefLabel "intended context for use"@en
+;  rdfs:domain :Media
+;  rdfs:range :Context
 .
 
 :rendition a owl:ObjectProperty

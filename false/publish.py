@@ -104,9 +104,7 @@ def get_html_body_for_rendition(tg, e, r, ipfs_client, markdown_processor, ipfs_
 
     mt = r.mediaType
 
-    save_ipfs(ipfs_client, r, ipfs_dir)
-
-    logging.debug('%s: found %s rendition' % (e, mt))
+    logging.debug('%s: using %s rendition' % (e, mt))
 
     if rdflib.Literal('text/markdown') in mt:
         # markdown is a partial page so safe to embed
@@ -126,8 +124,24 @@ def get_html_body_for_rendition(tg, e, r, ipfs_client, markdown_processor, ipfs_
     logging.info("%s: media type %s is not a suitable body" % (e, mt))
     return None
 
-def get_html_body(tg, e, ipfs_client, markdown_processor, ipfs_dir):
-    available = e.rendition
+def find_renditions_for_context(rr, ctx_id):
+    for r in rr:
+        for u in r.intendedUse:
+            if u.id == ctx_id:
+                out = []
+                for s in rr:
+                    for v in s.intendedUse:
+                        if u == v:
+                            out.append(s)
+                return out
+    # FIXME: currently falls through to picking something at random
+    return rr
+
+
+def get_html_body(tg, e, ctx_id, ipfs_client, markdown_processor, ipfs_dir):
+    rr = e.rendition
+    available = find_renditions_for_context(rr, ctx_id)
+    logging.debug("%s: %s of %s renditions available for context %s" % (e.id, len(available), len(rr), ctx_id))
 
     for r in available:
         eh = get_html_body_for_rendition(tg, e, r, ipfs_client, markdown_processor, ipfs_dir)
@@ -154,7 +168,7 @@ def publish_graph(g, cfg):
     for e_safe, e in tg.entities.items():
         stage[e] = {}
 
-        for ctx in (F.asPage, F.asEmbed): # TODO enumerate contexts that are in use
+        for ctx in (F.asPage, F.asEmbed, F.asDownload): # TODO enumerate contexts that are in use
 
             ctx_safe = tg.safePath(ctx)
             # use the most direct type because we need to go up in a specific order
@@ -210,20 +224,24 @@ def publish_graph(g, cfg):
         progress = False
         logging.info("%s pages left to render" % len(to_write))
         for e, dests in stage.items():
-            for ctx in dests:
-                t, dest = dests[ctx]
+            for r in e.rendition:
+                # put all the renditions up, in case referenced by a template
+                save_ipfs(cfg.ipfs_client, r, cfg.ipfs_dir)
 
-                for embed in e.includes:
-                    if F.asEmbed in stage[embed]:
-                        et, ed = stage[embed][F.asEmbed]
-                    else:
-                        raise PublishError("%s: need %s but there is no way to embed it" % (e, embed))
-                    if ed in to_write:
-                        logging.debug("%s: can't write %s yet, need %s" % (e, dest, ed))
-                        break
-                    logging.debug("%s: %s looks good" % (e, ed))
+
+            for embed in e.includes:
+                if F.asEmbed in stage[embed]:
+                    et, ed = stage[embed][F.asEmbed]
                 else:
-                    body = get_html_body(tg, e, cfg.ipfs_client, markdown_processor, cfg.ipfs_dir)
+                    raise PublishError("%s: need %s but there is no way to embed it" % (e, embed))
+                if ed in to_write:
+                    logging.debug("%s: can't write %s yet, need %s" % (e, dest, ed))
+                    break
+                logging.debug("%s: %s looks good" % (e, ed))
+            else:
+                for ctx in dests:
+                    t, dest = dests[ctx]
+                    body = get_html_body(tg, e, ctx, cfg.ipfs_client, markdown_processor, cfg.ipfs_dir)
 
                     body = re.sub("<p>\s*<false-embed([^>]*)>\s*</false-embed>\s*</p>", lambda m: resolve_embed(m, tg, e, True), body)
                     body = re.sub("<p>\s*<false-embed([^>]*)>\s*</p>", lambda m: resolve_embed(m, tg, e, True), body)
@@ -231,8 +249,8 @@ def publish_graph(g, cfg):
                     body = re.sub("<false-embed([^>]*)>", lambda m: resolve_embed(m, tg, e, False), body)
 
                     tg.add(e.id, F.html, rdflib.Literal(body))
-
                     content = t.render(e.po)
+                    tg.wipe(e.id, F.html) # html property depends on context and is only available to the template
 
                     os.makedirs(os.path.dirname(dest), exist_ok=True)
                     logging.debug("%s: writing %s" % (e, dest))

@@ -69,13 +69,13 @@ If you've defined an image as a Content (or a sub-type, like Picture), then you 
 ![](lingshed)
 
 Notice that the embedded image is automatically rendered in a nice way, with a link leading to its own page.
-And because the image has a description defined, there is no need to supply alt-text when you embed it.
+And because the image has a caption defined, and a description for the alt-text, there is no need to supply these every time you embed it.
 
 This isn't limited to images: any document can be embedded, including other documents written in Markdown.
 
 ![](reusable)
 
-You can't embed something that isn't a document, only link to it.
+You can't embed something that isn't a Content, only link to it.
 
 If you just want to embed an image from the internet, you can still do that, but you don't get <s>a cookie</s> the extra features.
 

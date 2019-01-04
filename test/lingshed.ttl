@@ -9,6 +9,7 @@
 <lingshed> a :Picture
 ;  skos:prefLabel "Photo of Lingshed Gonpa"@en
 ;  :description "Lingshed Gonpa seen from below. Two solar furnaces and a goat kid are visible on a terrace outside."
+;  :caption "Lingshed Gonpa."
 ;  :updated "2018-10-30T13:14:00.000Z"^^xsd:dateTime
 .
 

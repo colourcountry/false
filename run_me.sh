@@ -10,6 +10,8 @@ export FALSE_HOME_SITE=http://id.colourcountry.net/false-test/Site
 rm -fr "$FALSE_OUT"
 mkdir -p "$FALSE_OUT/ipfs"
 
+./convert_images.sh "$FALSE_SRC"
+
 export FALSE_HOME_PAGE=`python3 false.py`
 cp -avu static "$FALSE_OUT/static"
 python3 server.py "$FALSE_HOME_PAGE"

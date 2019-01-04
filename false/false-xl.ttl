@@ -68,6 +68,17 @@
 ;  owl:inverseOf :description
 .
 
+:caption a owl:DatatypeProperty
+;  skos:prefLabel "caption"@en
+;  rdfs:domain :Content
+;  rdfs:range xsd:string
+.
+
+:captionFor a :InverseDatatypeProperty
+;  skos:prefLabel "caption for"@en
+;  owl:inverseOf :caption
+.
+
 :updated a owl:DatatypeProperty
 ;  skos:prefLabel "updated"@en
 ;  rdfs:domain skos:Concept
@@ -112,5 +123,3 @@
 ;  owl:inverseOf :depicts
 ;  rdfs:subPropertyOf :hasAbout
 .
-
-

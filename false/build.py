@@ -16,8 +16,13 @@ FILE_TYPES = { "text/html": ".html",
                "image/png": ".png",
                "application/pdf": ".pdf" }
 
+CONTEXTS = { ".asEmbed.": F.asEmbed,
+             ".asPage.": F.asPage,
+             "": F.asDownload }
+
 CONTENT_NEW = 0
 CONTENT_READY = 1
+CONTENT_EXTERNAL = 2
 
 class ValidationError(ValueError):
     pass
@@ -46,14 +51,14 @@ class ImgExtExtension(markdown.extensions.Extension):
         img_ext = ImgExtractor(md, self.getConfig('base'))
         md.treeprocessors.add('imgext', img_ext, '>inline')
 
-def url_to_path(url, path=''):
+def url_to_path(url, path='', pfx='', sfx=''):
     if not url:
         return path
     p, s = posixpath.split(url)
     if path:
-        return url_to_path(p, os.path.join(s, path))
+        return url_to_path(p, os.path.join(pfx+s+sfx, path))
     else:
-        return url_to_path(p, s)
+        return url_to_path(p, pfx+s+sfx)
 
 def add_rendition(g, content_id, blob, ipfs_client, ipfs_namespace, mediaType, **properties):
     if not ipfs_client:
@@ -134,6 +139,7 @@ def build_graph(g, cfg):
             blob_id = add_rendition(gg, s, o.encode('utf-8'), cfg.ipfs_client, cfg.ipfs_namespace,
                 mediaType=rdflib.Literal('text/markdown'),
                 charset=rdflib.Literal('utf-8'),
+                intendedUse=F.asPage # embeds will fall back to this, but it can be distinguished from stuff to offer as a download
             )
             content[s] = CONTENT_READY
 
@@ -166,34 +172,40 @@ def build_graph(g, cfg):
         gg.add((content_id, F.published, rdflib.Literal(datetime.datetime.now().isoformat(), datatype=XSD.dateTime)))
 
         if not content_id.startswith(cfg.id_base):
+            content[content_id] = CONTENT_EXTERNAL
             continue # id is not ours, so nowhere to pull files from
 
-        for mime, t in FILE_TYPES.items():
-            fn = url_to_path(content_id[len(cfg.id_base):])+t
-            try:
-                blob = open(os.path.join(cfg.src_dir,fn),'rb').read()
-                # TODO: refactor these additions to the graph and save out the full RDF
-                blob_id = add_rendition(gg, content_id, blob, cfg.ipfs_client, cfg.ipfs_namespace,
-                    mediaType=rdflib.Literal(mime),
-                    charset=rdflib.Literal("utf-8"),
-                    )
-                content[content_id] = CONTENT_READY
+        for pfx, ctx in CONTEXTS.items():
+            found_something = False
+            for mime, ext in FILE_TYPES.items():
+                fn = url_to_path(content_id[len(cfg.id_base):], pfx=pfx, sfx=ext)
+                try:
+                    blob = open(os.path.join(cfg.src_dir,fn),'rb').read()
+                    # TODO: refactor these additions to the graph and save out the full RDF
+                    blob_id = add_rendition(gg, content_id, blob, cfg.ipfs_client, cfg.ipfs_namespace,
+                        mediaType=rdflib.Literal(mime),
+                        charset=rdflib.Literal("utf-8"),
+                        intendedUse=ctx
+                        )
+                    content[content_id] = CONTENT_READY # we've got something, even if it may be intended for a different context
 
-                if mime == 'text/markdown':
-                    html = mdproc.convert(blob.decode('utf-8'))
-                    for url in mdproc.images:
-                        uriref = rdflib.URIRef(url)
-                        if uriref in content:
-                            logging.debug("%s: found link to %s" % (content_id, url))
-                            gg.add((content_id, F.includes, uriref))
-                        else:
-                            logging.warning("%s: found link to non-document %s %s" % (content_id, url, content))
+                    if mime == 'text/markdown':
+                        html = mdproc.convert(blob.decode('utf-8'))
+                        for url in mdproc.images:
+                            uriref = rdflib.URIRef(url)
+                            if uriref in content:
+                                logging.debug("%s: found link to %s" % (content_id, url))
+                                gg.add((content_id, F.includes, uriref))
+                            else:
+                                logging.warning("%s: found link to non-document %s %s" % (content_id, url, content))
 
-            except IOError:
-                logging.debug("%s: nothing at %s" % (content_id, fn))
+                except IOError:
+                    continue
+
+            logging.debug("%s: looking for %s" % (content_id, pfx))
 
     for content_id in content:
-        if content[content_id] != CONTENT_READY:
+        if content[content_id] not in (CONTENT_READY, CONTENT_EXTERNAL):
             raise ValueError("%s: no renditions available, cannot publish" % content_id)
 
     return gg

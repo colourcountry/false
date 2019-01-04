@@ -51,7 +51,7 @@ class TemplatableSet(set):
 
 class TemplatableEntity:
     def __init__(self, s, safe):
-        self.id = s
+        self.id = rdflib.URIRef(s)
         self.safe = safe
         self.po = {'this': self}
         self.op = {}
@@ -220,7 +220,7 @@ class TemplatableGraph:
                 else:
                     return px+'_'+p[len(n):]
         # NOTE: prefixes and protocols can collide
-        return re.sub('[^A-Za-z0-9]','_',p) 
+        return re.sub('[^A-Za-z0-9]','_',p)
 
     def __contains__(self, e):
         return (e in self.entities)
@@ -265,6 +265,28 @@ class TemplatableGraph:
         for sp, p in list(self.predicates.items()):
             if sp not in self.inv_predicates:
                 self.addPredicate(p.id, 'inv_'+p.id)
+
+    def wipe(self, s, p):
+        ss, sp = self.safePath(s), self.safePath(p)
+        if ss not in self.entities:
+            raise ValueError("%s: entity does not exist, can't wipe %s" % (s, p))
+        if sp not in self.predicates:
+            raise ValueError("%s: predicate does not exist, can't wipe %s" % (s, p))
+
+        tes = self.entities[ss]
+        tep = self.predicates[sp]
+        teip = self.inv_predicates[sp]
+
+        for teo in tes.po[sp]:
+            if not isinstance(teo, rdflib.Literal):
+                # FIXME: haven't tested this
+                tes.op[teo.safe].remove(tep)
+                teo.op[tes.safe].remove(teip)
+                del(teo.po[teip.safe])
+                del(teip.so[teo.safe])
+
+        del(tes.po[sp])
+        del(tep.so[ss])
 
     def add(self, s, p, o):
         ss, sp, so = self.safePath(s), self.safePath(p), self.safePath(o)

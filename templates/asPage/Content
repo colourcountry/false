@@ -29,7 +29,9 @@
                 <h3>Download</h3>
                 <ul>
                     {% for item in rendition %}
-                        <li><a href="{{ item.id }}">{{ item.mediaType }}</a></li>
+                        <li><a href="{{ item.id }}">{{ item.mediaType }}</a>
+                        {% if item.intendedUse %} for {{ item.intendedUse.skos_prefLabel }}{% endif %}
+                        </li>
                     {% endfor %}
                 </ul>
         {% endif %}
