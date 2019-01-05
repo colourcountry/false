@@ -94,16 +94,29 @@ skos:broader a owl:ObjectProperty
 ;  rdfs:subClassOf skos:Concept
 .
 
-:embed a :Context
-;  skos:prefLabel "embed context"@en
-.
-
-:page a :Context
-;  skos:prefLabel "page context"@en
+:fallback a owl:DatatypeProperty
+;  skos:prefLabel "fallback context"@en
+;  rdfs:domain :Context
+;  rdfs:range :Context
 .
 
 :download a :Context
 ;  skos:prefLabel "download context"@en
+.
+
+:page a :Context
+;  skos:prefLabel "page context"@en
+;  :fallback :download
+.
+
+:embed a :Context
+;  skos:prefLabel "embed context"@en
+;  :fallback :page
+.
+
+:teaser a :Context
+;  skos:prefLabel "teaser context"@en
+#  No fallback - if there's not a specific teaser, display nothing
 .
 
 :mediaType a owl:DatatypeProperty
@@ -147,16 +160,23 @@ skos:broader a owl:ObjectProperty
 ;  rdfs:range xsd:string
 .
 
-:asPage a owl:DatatypeProperty
-;  skos:prefLabel "HTML"@en
-;  skos:related :default
+:asTeaser a owl:DatatypeProperty
+;  skos:prefLabel "HTML for teasers, sidebar links and search results"@en
+;  skos:related :embed
 ;  rdfs:domain skos:Concept
 ;  rdfs:range xsd:string
 .
 
 :asEmbed a owl:DatatypeProperty
-;  skos:prefLabel "HTML for embedding"@en
+;  skos:prefLabel "HTML for embedding in documents"@en
 ;  skos:related :embed
+;  rdfs:domain skos:Concept
+;  rdfs:range xsd:string
+.
+
+:asPage a owl:DatatypeProperty
+;  skos:prefLabel "HTML for standalone display"@en
+;  skos:related :default
 ;  rdfs:domain skos:Concept
 ;  rdfs:range xsd:string
 .

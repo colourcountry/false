@@ -12,7 +12,7 @@ EXTERNAL_LINKS = {
 
 F = rdflib.Namespace("http://id.colourcountry.net/false/")
 
-HTML_FOR_CONTEXT = { F.embed: F.asEmbed, F.page: F.asPage }
+HTML_FOR_CONTEXT = { F.teaser: F.asTeaser, F.embed: F.asEmbed, F.page: F.asPage }
 
 class PublishError(ValueError):
     pass
@@ -114,7 +114,7 @@ def get_html_body_for_rendition(tg, e, r, ipfs_client, markdown_processor, ipfs_
 
     for m in mt:
         if m.startswith('image/'):
-            return '<img src="%s" alt="%s">' % (r.blobURL, e.description)
+            return '<img src="%s" alt="%s">' % (r.blobURL, e.caption)
 
     if rdflib.Literal('text/html') in mt:
         # html is assumed to be a complete page
@@ -126,31 +126,35 @@ def get_html_body_for_rendition(tg, e, r, ipfs_client, markdown_processor, ipfs_
     logging.info("%s: media type %s is not a suitable body" % (e, mt))
     return None
 
-def find_renditions_for_context(rr, ctx_id):
+def find_renditions_for_context(rr, ctx):
     for r in rr:
         for u in r.intendedUse:
-            if u.id == ctx_id:
+            logging.debug("intended use %s %s" % (u,ctx))
+            if u == ctx:
                 out = []
                 for s in rr:
                     for v in s.intendedUse:
                         if u == v:
                             out.append(s)
                 return out
-    # FIXME: currently falls through to picking something at random
-    return rr
+    for f in ctx.fallback:
+        out = find_renditions_for_context(rr, f)
+        if out:
+            return out
+    return []
 
 
-def get_html_body(tg, e, ctx_id, ipfs_client, markdown_processor, ipfs_dir):
+def get_html_body(tg, e, ctx, ipfs_client, markdown_processor, ipfs_dir):
     rr = e.rendition
-    available = find_renditions_for_context(rr, ctx_id)
-    logging.debug("%s: %s of %s renditions available for context %s" % (e.id, len(available), len(rr), ctx_id))
+    available = find_renditions_for_context(rr, ctx)
+    logging.debug("%s: %s of %s renditions available for context %s" % (e.id, len(available), len(rr), ctx))
 
     for r in available:
         eh = get_html_body_for_rendition(tg, e, r, ipfs_client, markdown_processor, ipfs_dir)
         if eh:
             return eh
 
-    return '<!-- non-renderable item %s (tried %s) -->' % (e, available.join(', '))
+    return '<!-- non-renderable item %s (tried %s) -->' % (e, available)
 
 def publish_graph(g, cfg):
     tg = TemplatableGraph(g)
@@ -170,8 +174,7 @@ def publish_graph(g, cfg):
     for e_safe, e in tg.entities.items():
         stage[e] = {}
 
-        for ctx in (F.page, F.embed):
-
+        for ctx in HTML_FOR_CONTEXT:
             ctx_safe = tg.safePath(ctx)
             # use the most direct type because we need to go up in a specific order
             # FIXME: provide ordered walk functions on entities?
@@ -183,7 +186,7 @@ def publish_graph(g, cfg):
                     try:
                         t = jinja_e.get_template(t_path)
                     except jinja2.exceptions.TemplateNotFound as err:
-                        logging.debug("%s: no template at %s" % (e, t_path))
+                        # bit verbose logging.debug("%s: no template at %s" % (e, t_path))
                         continue
 
                     dest = get_page_path(e_safe, ctx_safe, e_type, cfg.output_dir)
@@ -241,9 +244,10 @@ def publish_graph(g, cfg):
                     break
                 logging.debug("%s: %s looks good" % (e, ed))
             else:
-                for ctx in dests:
-                    t, dest = dests[ctx]
-                    body = get_html_body(tg, e, ctx, cfg.ipfs_client, markdown_processor, cfg.ipfs_dir)
+                # get the rendition html for all contexts even if there won't be a page
+                for ctx in HTML_FOR_CONTEXT:
+                    ctx_safe = tg.safePath(ctx)
+                    body = get_html_body(tg, e, tg.entities[ctx_safe], cfg.ipfs_client, markdown_processor, cfg.ipfs_dir)
 
                     body = re.sub("<p>\s*<false-embed([^>]*)>\s*</false-embed>\s*</p>", lambda m: resolve_embed(m, tg, e, True), body)
                     body = re.sub("<p>\s*<false-embed([^>]*)>\s*</p>", lambda m: resolve_embed(m, tg, e, True), body)
@@ -251,7 +255,11 @@ def publish_graph(g, cfg):
                     body = re.sub("<false-embed([^>]*)>", lambda m: resolve_embed(m, tg, e, False), body)
 
                     tg.add(e.id, HTML_FOR_CONTEXT[ctx], rdflib.Literal(body))
-                    content = t.render(e.po)
+
+                # now build the pages
+                for ctx in dests:
+                    tpl, dest = dests[ctx]
+                    content = tpl.render(e.po)
 
                     os.makedirs(os.path.dirname(dest), exist_ok=True)
                     logging.debug("%s: writing %s" % (e, dest))

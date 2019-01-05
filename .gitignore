@@ -107,4 +107,5 @@ pub/
 ipfs/
 .embed.*
 .page.*
+.teaser.*
 

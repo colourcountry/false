@@ -16,9 +16,14 @@ FILE_TYPES = { "text/html": ".html",
                "image/png": ".png",
                "application/pdf": ".pdf" }
 
-CONTEXTS = { ".embed.": F.embed,
+# Local content can appear in these contexts
+CONTEXTS = { ".teaser.": F.teaser,
+             ".embed.": F.embed,
              ".page.": F.page,
              "": F.download }
+
+# Remote content, or non-content, can only appear as a teaser
+LIMITED_CONTEXTS = { ".teaser.": F.teaser }
 
 CONTENT_NEW = 0
 CONTENT_READY = 1
@@ -100,7 +105,7 @@ def add_rendition(g, content_id, blob, ipfs_client, ipfs_namespace, mediaType, *
     for k, v in properties.items():
         logging.debug("%s: adding property %s=%s" % (content_id, k, v))
         g.add((wrapped_id, F[k], v))
-    logging.info("%s: adding rendition %s" % (content_id, wrapped_id))
+    logging.debug("%s: adding rendition %s" % (content_id, wrapped_id))
     g.add((content_id, F.rendition, wrapped_id))
     return wrapped_id
 
@@ -139,7 +144,7 @@ def build_graph(g, cfg):
             blob_id = add_rendition(gg, s, o.encode('utf-8'), cfg.ipfs_client, cfg.ipfs_namespace,
                 mediaType=rdflib.Literal('text/markdown'),
                 charset=rdflib.Literal('utf-8'),
-                intendedUse=F.asPage # embeds will fall back to this, but it can be distinguished from stuff to offer as a download
+                intendedUse=F.page # embeds will fall back to this, but it can be distinguished from stuff to offer as a download
             )
             content[s] = CONTENT_READY
 
@@ -168,15 +173,26 @@ def build_graph(g, cfg):
         else:
             gg.add((s, p, o))
 
-    for content_id in content:
-        gg.add((content_id, F.published, rdflib.Literal(datetime.datetime.now().isoformat(), datatype=XSD.dateTime)))
+    for content_id in entities:
 
-        if not content_id.startswith(cfg.id_base):
+        # TODO: do this more nicely
+        if content_id not in content:
+            if content_id.startswith(cfg.id_base):
+                # local non-content can be teased
+                valid_contexts = LIMITED_CONTEXTS
+            else:
+                # external non-content is not part of our world so we will not attempt to render it
+                # To tease it, bring it into our world with an ID and skos:exactMatch it to the external entity
+                continue
+        elif content_id.startswith(cfg.id_base):
+            valid_contexts = CONTEXTS
+            gg.add((content_id, F.published, rdflib.Literal(datetime.datetime.now().isoformat(), datatype=XSD.dateTime)))
+        else:
+            # external content is noted, but we will not render it, see above
             content[content_id] = CONTENT_EXTERNAL
-            continue # id is not ours, so nowhere to pull files from
+            continue
 
-        for pfx, ctx in CONTEXTS.items():
-            found_something = False
+        for pfx, ctx in valid_contexts.items():
             for mime, ext in FILE_TYPES.items():
                 fn = url_to_path(content_id[len(cfg.id_base):], pfx=pfx, sfx=ext)
                 try:
@@ -187,7 +203,13 @@ def build_graph(g, cfg):
                         charset=rdflib.Literal("utf-8"),
                         intendedUse=ctx
                         )
-                    content[content_id] = CONTENT_READY # we've got something, even if it may be intended for a different context
+
+                    logging.info("%s: found %s for %s" % (content_id, fn, ctx))
+
+                    if content_id in content:
+                        # we've got something, even if it may be intended for a different context
+                        # TODO: figure out if this is a bad idea
+                        content[content_id] = CONTENT_READY
 
                     if mime == 'text/markdown':
                         html = mdproc.convert(blob.decode('utf-8'))
@@ -200,9 +222,8 @@ def build_graph(g, cfg):
                                 logging.warning("%s: found link to non-document %s %s" % (content_id, url, content))
 
                 except IOError:
+                    # verbose logging.debug("%s: nothing at %s" % (content_id, fn))
                     continue
-
-            logging.debug("%s: looking for %s" % (content_id, pfx))
 
     for content_id in content:
         if content[content_id] not in (CONTENT_READY, CONTENT_EXTERNAL):
