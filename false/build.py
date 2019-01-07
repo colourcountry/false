@@ -39,13 +39,30 @@ class ImgExtractor(markdown.treeprocessors.Treeprocessor):
         super(ImgExtractor, self).__init__(md)
 
     def run(self, doc):
-        "Find all images and links and append to markdown.images. "
+        "Find all images and links and create lists of them. "
         self.markdown.images = []
         self.markdown.links = []
-        for image in doc.findall('.//img'):
-            self.markdown.images.append(urllib.parse.urljoin(self.base, image.get('src')))
-        for image in doc.findall('.//a'):
-            self.markdown.links.append(urllib.parse.urljoin(self.base, image.get('href')))
+
+        # <false-content> tags are embeds if their contexts is the special embed context
+        # otherwise we assume they are links
+        for el in doc.findall('.//false-content'):
+            if rdflib.URIRef(el.get('context')) == F.embed:
+                self.markdown.images.append(urllib.parse.urljoin(self.base, el.get('src')))
+            else:
+                self.markdown.links.append(urllib.parse.urljoin(self.base, el.get('src')))
+
+        # All of these will get transformed into <false-content> in the publish stage
+        for el in doc.findall('.//img'):
+            self.markdown.images.append(urllib.parse.urljoin(self.base, el.get('src')))
+        for el in doc.findall('.//false-embed'):
+            self.markdown.images.append(urllib.parse.urljoin(self.base, el.get('src')))
+        for el in doc.findall('.//false-teaser'):
+            self.markdown.links.append(urllib.parse.urljoin(self.base, el.get('src')))
+
+        # Regular links (which are safe because they don't use any data from the linked item)
+        for el in doc.findall('.//a'):
+            self.markdown.links.append(urllib.parse.urljoin(self.base, el.get('href')))
+
 
 class ImgExtExtension(markdown.extensions.Extension):
     def __init__(self, **kwargs):
@@ -153,7 +170,7 @@ def build_graph(g, cfg):
                 uriref = rdflib.URIRef(url)
                 if uriref in content:
                     logging.debug("%s: found embed of %s" % (s, url))
-                    gg.add((s, F.includes, uriref))
+                    gg.add((s, F.incorporates, uriref))
                 elif uriref in entities:
                     raise ValidationError("%s: tried to embed non-document %s" % (s, url))
                 else:
@@ -217,7 +234,7 @@ def build_graph(g, cfg):
                             uriref = rdflib.URIRef(url)
                             if uriref in content:
                                 logging.debug("%s: found link to %s" % (content_id, url))
-                                gg.add((content_id, F.includes, uriref))
+                                gg.add((content_id, F.incorporates, uriref))
                             else:
                                 logging.warning("%s: found link to non-document %s %s" % (content_id, url, content))
 

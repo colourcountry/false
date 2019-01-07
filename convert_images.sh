@@ -1,8 +1,8 @@
 #!/bin/bash
 
 export TEASER_SIZE=400
-export EMBED_SIZE=400
-export PAGE_SIZE=1400
+export EMBED_SIZE=800
+export PAGE_SIZE=1200
 
 if [[ $2 == "-wipe" ]]
 then

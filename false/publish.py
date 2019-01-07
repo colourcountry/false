@@ -17,6 +17,9 @@ HTML_FOR_CONTEXT = { F.teaser: F.asTeaser, F.embed: F.asEmbed, F.page: F.asPage 
 class PublishError(ValueError):
     pass
 
+class PublishNotReadyError(PublishError):
+    pass
+
 class ImgRewriter(markdown.treeprocessors.Treeprocessor):
     def __init__(self, md, tg, base):
         self.tg = tg
@@ -24,18 +27,24 @@ class ImgRewriter(markdown.treeprocessors.Treeprocessor):
         super(ImgRewriter, self).__init__(md)
 
     def run(self, doc):
-        "Find all images and append to markdown.images. "
+        for embed in doc.findall('.//false-embed'):
+            embed.tag = 'false-content'
+            embed.set('context', F.embed)
+            embed.set('src', urllib.parse.urljoin(self.base, embed.get('src')))
+
+        for teaser in doc.findall('.//false-teaser'):
+            teaser.tag = 'false-content'
+            teaser.set('context', F.teaser)
+            teaser.set('src', urllib.parse.urljoin(self.base, teaser.get('src')))
+
         for image in doc.findall('.//img'):
             src = urllib.parse.urljoin(self.base, image.get('src'))
-            src_safe = self.tg.safePath(src)
             logging.debug("Found image with src %s" % src)
+            src_safe = self.tg.safePath(src)
             if src_safe in self.tg.entities:
-                if self.tg.entities[src_safe].embedPath:
-                    image.set('src', self.tg.entities[src_safe].embedPath)
-                    image.set('context', F.embed)
-                    image.tag = 'false-embed'
-                else:
-                    raise PublishError("don't have an embeddable version of %s" % src)
+                image.set('src', src)
+                image.set('context', F.embed)
+                image.tag = 'false-content'
             else:
                 pass # sometimes an image is just an image
 
@@ -87,14 +96,28 @@ def get_page_path(e, ctx, e_type, output_dir, file_type='html'):
 def get_page_url(e, ctx, e_type, url_base, file_type='html'):
     return '%s/%s/%s/%s' % (url_base, e_type.safe, ctx, e+'.'+file_type)
 
-def resolve_embed(m, tg, e, in_p=False):
-    logging.debug("Resolving embed %s" % (m.group(1)))
+def resolve_content_reference(m, tg, base, stage, e, in_p=False):
+    logging.debug("Resolving content reference %s" % (m.group(1)))
+
     attrs = {}
     for mm in re.finditer('(\S+)="([^"]*)"', m.group(1)):
         attrs[mm.group(1)]=mm.group(2)
 
-    with open(attrs['src'],'r') as f:
-        return f.read()
+    src = urllib.parse.urljoin(base, attrs["src"])
+    src_safe = tg.safePath(src)
+    ctx = rdflib.URIRef(attrs["context"])
+
+    if ctx not in stage[tg.entities[src_safe]]:
+        logging.warning("can't publish %s: version for context %s is not staged" % (src, ctx))
+        raise PublishNotReadyError
+
+    # the stage has (template, path) for each context so [1] references the path
+    try:
+        with open(stage[tg.entities[src_safe]][ctx][1],'r') as f:
+            return f.read()
+    except FileNotFoundError:
+        logging.debug("can't publish %s: version for context %s has not yet been built" % (src, ctx))
+        raise PublishNotReadyError
 
 def get_html_body_for_rendition(tg, e, r, ipfs_client, markdown_processor, ipfs_dir):
     def get_charset(r, e, mt):
@@ -129,7 +152,6 @@ def get_html_body_for_rendition(tg, e, r, ipfs_client, markdown_processor, ipfs_
 def find_renditions_for_context(rr, ctx):
     for r in rr:
         for u in r.intendedUse:
-            logging.debug("intended use %s %s" % (u,ctx))
             if u == ctx:
                 out = []
                 for s in rr:
@@ -172,7 +194,7 @@ def publish_graph(g, cfg):
     home_page = None
 
     for e_safe, e in tg.entities.items():
-        stage[e] = {}
+        dests_by_context = {}
 
         for ctx in HTML_FOR_CONTEXT:
             ctx_safe = tg.safePath(ctx)
@@ -184,7 +206,7 @@ def publish_graph(g, cfg):
                 for e_type in e_types:
                     t_path = os.path.join(ctx_safe, e_type.safe)
                     try:
-                        t = jinja_e.get_template(t_path)
+                        tpl = jinja_e.get_template(t_path)
                     except jinja2.exceptions.TemplateNotFound as err:
                         # bit verbose logging.debug("%s: no template at %s" % (e, t_path))
                         continue
@@ -192,83 +214,98 @@ def publish_graph(g, cfg):
                     dest = get_page_path(e_safe, ctx_safe, e_type, cfg.output_dir)
                     url = get_page_url(e_safe, ctx_safe, e_type, cfg.url_base)
 
-                    logging.debug('%s: will render for %s as %s -> %s' % (e, ctx, e_type, dest))
-                    stage[e][ctx] = (t, dest)
                     if e.id == rdflib.URIRef(cfg.home_site) and ctx == F.page:
                         home_page = url
 
                     e_types = None # found a renderable type
 
+                    # FIXME: some contexts are still valid here (like teaser)
+                    if e.url:
+                        # graph specified the URL, don't make one
+                        break
+                    elif F.WebPage in e.rdf_type:
+                        # object is a Web page whose ID is its URL
+                        tg.add(e.id, F.url, e.id)
+                        break
+
                     if ctx == F.page:
-                        if e.url:
-                            # graph specified the URL, don't make one
-                            break
-                        elif F.WebPage in e.rdf_type:
-                            # object is a Web page whose ID is its URL
-                            tg.add(e.id, F.url, e.id)
-                            break
-                        else:
-                            # add the computed URL of the item as a full page, for templates to pick up
-                            tg.add(e.id, F.url, rdflib.Literal(url))
-                    elif ctx == F.embed:
-                        # add the embed path, for the post-template stitcher to pick up
-                        tg.add(e.id, F.embedPath, rdflib.Literal(dest))
+                        # add the computed URL of the item as a full page, for templates to pick up
+                        tg.add(e.id, F.url, rdflib.Literal(url))
 
+                    logging.debug('%s: will render for %s as %s -> %s' % (e, ctx, e_type, dest))
+                    dests_by_context[ctx] = (tpl, dest)
                     to_write.add(dest)
-
                     break
 
                 if e_types is not None:
                     # get the next layer of types
                     e_types = e_types.rdfs_subClassOf
 
-    logging.info("Stage is ready")
+        if dests_by_context:
+            stage[e] = dests_by_context
 
+    logging.info("Stage is ready: %s entities" % len(stage))
+
+    for e in stage:
+        s = []
+        for ctx in stage[e]:
+            if stage[e][ctx][1] in to_write:
+                s.append(str(ctx))
+            else:
+                s.append(None)
+        logging.debug("%s: %s" % (e, s))
+
+    iteration = 0
+    written = set()
     progress = True
     while progress:
+        iteration += 1
         progress = False
-        logging.info("%s pages left to render" % len(to_write))
+        logging.info("Publish iteration %d: %s pages rendered, %s pages left" % (iteration, len(written), len(to_write)))
+        logging.debug(to_write)
+
+        # first put all the renditions up, in case referenced by a template
         for e, dests in stage.items():
             for r in e.rendition:
-                # put all the renditions up, in case referenced by a template
                 save_ipfs(cfg.ipfs_client, r, cfg.ipfs_dir)
 
-
-            for embed in e.includes:
-                if F.embed in stage[embed]:
-                    et, ed = stage[embed][F.embed]
-                else:
-                    raise PublishError("%s: need %s but there is no way to embed it" % (e, embed))
-                if ed in to_write:
-                    logging.debug("%s: can't write %s yet, need %s" % (e, dest, ed))
-                    break
-                logging.debug("%s: %s looks good" % (e, ed))
-            else:
-                # get the rendition html for all contexts even if there won't be a page
-                for ctx in HTML_FOR_CONTEXT:
-                    ctx_safe = tg.safePath(ctx)
+        # now build the HTML for everything in the different contexts and add to the graph
+        for e, dests in stage.items():
+            for ctx in HTML_FOR_CONTEXT:
+                ctx_safe = tg.safePath(ctx)
+                try:
                     body = get_html_body(tg, e, tg.entities[ctx_safe], cfg.ipfs_client, markdown_processor, cfg.ipfs_dir)
 
-                    body = re.sub("<p>\s*<false-embed([^>]*)>\s*</false-embed>\s*</p>", lambda m: resolve_embed(m, tg, e, True), body)
-                    body = re.sub("<p>\s*<false-embed([^>]*)>\s*</p>", lambda m: resolve_embed(m, tg, e, True), body)
-                    body = re.sub("<false-embed([^>]*)>\s*</false-embed>", lambda m: resolve_embed(m, tg, e, True), body)
-                    body = re.sub("<false-embed([^>]*)>", lambda m: resolve_embed(m, tg, e, False), body)
+                    body = re.sub("<p>\s*<false-content([^>]*)>\s*</false-content>\s*</p>", lambda m: resolve_content_reference(m, tg, cfg.id_base, stage, e, True), body)
+                    body = re.sub("<p>\s*<false-content([^>]*)>\s*</p>", lambda m: resolve_content_reference(m, tg, cfg.id_base, stage, e, True), body)
+                    body = re.sub("<false-content([^>]*)>\s*</false-content>", lambda m: resolve_content_reference(m, tg, cfg.id_base, stage, e, True), body)
+                    body = re.sub("<false-content([^>]*)>", lambda m: resolve_content_reference(m, tg, cfg.id_base, stage, e, False), body)
 
                     tg.add(e.id, HTML_FOR_CONTEXT[ctx], rdflib.Literal(body))
+                except PublishNotReadyError:
+                    continue # maybe it'll be ready next time round
 
-                # now build the pages
-                for ctx in dests:
-                    tpl, dest = dests[ctx]
-                    content = tpl.render(e.po)
+        # finally build and save out all the pages
+        for e, dests in stage.items():
+            for ctx in dests:
+                tpl, dest = dests[ctx]
+                if dest in written:
+                    logging.debug("%s: already wrote %s" % (e, dest))
+                    continue
 
-                    os.makedirs(os.path.dirname(dest), exist_ok=True)
-                    logging.debug("%s: writing %s" % (e, dest))
-                    with open(dest,'w') as f:
-                        f.write(content)
+                content = tpl.render(e.po)
 
-                    if dest in to_write:
-                        to_write.remove(dest)
-                        progress = True
+                os.makedirs(os.path.dirname(dest), exist_ok=True)
+                logging.debug("%s: writing %s" % (e, dest))
+                with open(dest,'w') as f:
+                    f.write(content)
+
+                to_write.remove(dest)
+                written.add(dest)
+                progress = True
+
+        if not to_write:
+            break
 
     if to_write:
         raise PublishError("Embed loop, can't render these: %s" % '\n'.join(to_write))

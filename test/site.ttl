@@ -81,6 +81,20 @@ If you just want to embed an image from the internet, you can still do that, but
 
 ![a kitten](http://placekitten.com/150/150)
 
+You can also embed using the special HTML tag `false-embed`
+
+<false-embed src="lingshed">
+
+And you can have teasers with `false-teaser`
+
+<false-teaser src="lingshed">
+
+All of these are special cases of `false-content` with a supplied context.
+
+<false-content context="http://id.colourcountry.net/false/embed" src="lingshed">
+
+<false-content context="http://id.colourcountry.net/false/teaser" src="lingshed">
+
 [1]: templates "Footnote style links are also supported."
 [2]: mentions
 """@en

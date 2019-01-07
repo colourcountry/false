@@ -199,17 +199,17 @@ skos:broader a owl:ObjectProperty
 ;  rdfs:range xsd:dateTime
 .
 
-:includes a owl:ObjectProperty
-;  skos:prefLabel "includes"@en
+:incorporates a owl:ObjectProperty
+;  skos:prefLabel "incorporates"@en
 ;  rdfs:domain :CreativeWork
 ;  rdfs:range :CreativeWork
 ;  rdfs:subPropertyOf skos:narrower
 .
 
-:includedIn a owl:ObjectProperty
-;  skos:prefLabel "included in"@en
+:incorporatedIn a owl:ObjectProperty
+;  skos:prefLabel "incorporated in"@en
 ;  rdfs:subPropertyOf skos:broader
-;  owl:inverseOf :includes
+;  owl:inverseOf :incorporates
 .
 
 :links a owl:ObjectProperty
