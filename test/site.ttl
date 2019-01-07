@@ -50,7 +50,8 @@ Download the source file to see how things are done.
 
 ## Linking to things
 
-You can link to any document using its ID: here is one about [](contexts)
+You can link to any document using its ID: here is one about [](templates)
+
 URLs are relative to the base ID supplied to the build process, so you can easily link to the documents you've defined.
 (Absolute URLs are ok, but note that any prefixes defined in the TTL aren't accessible to markdown.)
 
@@ -69,7 +70,7 @@ If you've defined an image as a Content (or a sub-type, like Picture), then you 
 
 ![](lingshed)
 
-Notice that the embedded image is automatically rendered in a nice way, with a link leading to its own page.
+The embedded image is automatically rendered in a nice way, with a link leading to its own page.
 And because the image has a caption defined, and a description for the alt-text, there is no need to supply these every time you embed it.
 
 This isn't limited to images: any document can be embedded, including other documents written in Markdown.
@@ -84,16 +85,21 @@ If you just want to embed an image from the internet, you can still do that, but
 
 ### Teasers
 
-<false-content context="http://id.colourcountry.net/false/teaser" src="lingshed">
+<false-content context="http://id.colourcountry.net/false/teaser" src="http://id.colourcountry.net/world/India">
 <false-content context="http://id.colourcountry.net/false/teaser" src="mentions">
 
-Teasers are a fancy way to link to another entity. The special &lt;false-content&gt; HTML tag provides access to these
+Teasers are a fancy way to link to another entity. You can link to anything, it doesn't have to be Content.
+
+The special `<false-content>` HTML tag provides access to these,
+assuming you have defined an [appropriate template][1].
 
 ### Advanced embedding
 
-Regular embeds can also be specified with &lt;false-content&gt; though I am not sure why you'd want to.
+Regular embeds can also be specified with `<false-content>` though I am not sure why you'd want to.
 
 <false-content context="http://id.colourcountry.net/false/embed" src="lingshed"></false-content>
+
+In future FALSE may allow you to define your own contexts and refer to them in this way.
 
 [1]: templates "Footnote style links are also supported."
 [2]: mentions
