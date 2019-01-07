@@ -31,10 +31,8 @@ class TemplatableSet(set):
         for i in self:
             return i
 
-    def __getattr__(self, a):
-        if a=="__html__":
-            raise AttributeError # jinja2 tries this before escaping
-
+    def get(self, a):
+        '''Return a TemplatableSet for an attribute, empty or otherwise.'''
         s = TemplatableSet()
         for i in self:
             # Any AttributeError raised inside __getattr__ will get mysteriously swallowed,
@@ -47,7 +45,18 @@ class TemplatableSet(set):
                     raise ValueError('Attribute %s of set element %s was %s, not a set' % (a, repr(i), repr(g)))
             else:
                 pass # this setelement didn't have the requested attribute :shrug:
+
         return s
+
+    def __getattr__(self, a):
+        if a=="__html__":
+            raise AttributeError # jinja2 tries this before escaping
+
+        s = self.get(a)
+        if s:
+            return s
+        else:
+            raise AttributeError
 
 class TemplatableEntity:
     def __init__(self, s, safe):

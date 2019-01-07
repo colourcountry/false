@@ -230,7 +230,7 @@ def publish_graph(g, cfg):
 
                 if e_types is not None:
                     # get the next layer of types
-                    e_types = e_types.rdfs_subClassOf
+                    e_types = e_types.get('rdfs_subClassOf')
 
     logging.info("Stage is ready: %s destinations, %s entities" % (len(stage), len(entities_to_write)))
 
