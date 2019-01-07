@@ -1,0 +1,1 @@
+<div class="asTeaser"><a href="{{ url }}">{{ asTeaser|safe }}<p>{{ skos_prefLabel }}</p></a></div>
