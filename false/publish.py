@@ -27,15 +27,6 @@ class ImgRewriter(markdown.treeprocessors.Treeprocessor):
         super(ImgRewriter, self).__init__(md)
 
     def run(self, doc):
-        for embed in doc.findall('.//false-embed'):
-            embed.tag = 'false-content'
-            embed.set('context', F.embed)
-            embed.set('src', urllib.parse.urljoin(self.base, embed.get('src')))
-
-        for teaser in doc.findall('.//false-teaser'):
-            teaser.tag = 'false-content'
-            teaser.set('context', F.teaser)
-            teaser.set('src', urllib.parse.urljoin(self.base, teaser.get('src')))
 
         for image in doc.findall('.//img'):
             src = urllib.parse.urljoin(self.base, image.get('src'))
@@ -107,16 +98,16 @@ def resolve_content_reference(m, tg, base, stage, e, in_p=False):
     src_safe = tg.safePath(src)
     ctx = rdflib.URIRef(attrs["context"])
 
-    if ctx not in stage[tg.entities[src_safe]]:
-        logging.warning("can't publish %s: version for context %s is not staged" % (src, ctx))
-        raise PublishNotReadyError
+    if (tg.entities[src_safe], ctx) not in stage:
+        raise PublishError("can't resolve %s@@%s: not staged" % (src, ctx))
 
     # the stage has (template, path) for each context so [1] references the path
+    fn = stage[(tg.entities[src_safe],ctx)][1]
     try:
-        with open(stage[tg.entities[src_safe]][ctx][1],'r') as f:
+        with open(fn,'r') as f:
             return f.read()
     except FileNotFoundError:
-        logging.debug("can't publish %s: version for context %s has not yet been built" % (src, ctx))
+        logging.debug("can't resolve %s@@%s: not yet built" % (src, ctx))
         raise PublishNotReadyError
 
 def get_html_body_for_rendition(tg, e, r, ipfs_client, markdown_processor, ipfs_dir):
@@ -169,14 +160,14 @@ def find_renditions_for_context(rr, ctx):
 def get_html_body(tg, e, ctx, ipfs_client, markdown_processor, ipfs_dir):
     rr = e.rendition
     available = find_renditions_for_context(rr, ctx)
-    logging.debug("%s: %s of %s renditions available for context %s" % (e.id, len(available), len(rr), ctx))
+    logging.debug("%s@@%s: %s of %s renditions available" % (e, ctx, len(available), len(rr)))
 
     for r in available:
         eh = get_html_body_for_rendition(tg, e, r, ipfs_client, markdown_processor, ipfs_dir)
         if eh:
             return eh
 
-    return '<!-- non-renderable item %s (tried %s) -->' % (e, available)
+    return '<!-- %s@@%s (tried %s) -->' % (e, ctx, available)
 
 def publish_graph(g, cfg):
     tg = TemplatableGraph(g)
@@ -189,8 +180,8 @@ def publish_graph(g, cfg):
     markdown_processor = markdown.Markdown(output_format="html5", extensions=[ImgRewriteExtension(tg=tg, base=cfg.id_base)])
 
     embed_html = {}
+    entities_to_write = set()
     stage = {}
-    to_write = set()
     home_page = None
 
     for e_safe, e in tg.entities.items():
@@ -232,83 +223,72 @@ def publish_graph(g, cfg):
                         # add the computed URL of the item as a full page, for templates to pick up
                         tg.add(e.id, F.url, rdflib.Literal(url))
 
-                    logging.debug('%s: will render for %s as %s -> %s' % (e, ctx, e_type, dest))
-                    dests_by_context[ctx] = (tpl, dest)
-                    to_write.add(dest)
+                    logging.debug('%s@@%s: will render as %s -> %s' % (e, ctx, e_type, dest))
+                    stage[(e, ctx)]=(tpl, dest)
+                    entities_to_write.add(e)
                     break
 
                 if e_types is not None:
                     # get the next layer of types
                     e_types = e_types.rdfs_subClassOf
 
-        if dests_by_context:
-            stage[e] = dests_by_context
+    logging.info("Stage is ready: %s destinations, %s entities" % (len(stage), len(entities_to_write)))
 
-    logging.info("Stage is ready: %s entities" % len(stage))
-
-    for e in stage:
-        s = []
-        for ctx in stage[e]:
-            if stage[e][ctx][1] in to_write:
-                s.append(str(ctx))
-            else:
-                s.append(None)
-        logging.debug("%s: %s" % (e, s))
+    # first put all the renditions up, in case referenced by a template
+    for e in entities_to_write:
+        for r in e.rendition:
+            save_ipfs(cfg.ipfs_client, r, cfg.ipfs_dir)
 
     iteration = 0
-    written = set()
+    to_write = set(stage.keys())
     progress = True
     while progress:
         iteration += 1
         progress = False
-        logging.info("Publish iteration %d: %s pages rendered, %s pages left" % (iteration, len(written), len(to_write)))
-        logging.debug(to_write)
-
-        # first put all the renditions up, in case referenced by a template
-        for e, dests in stage.items():
-            for r in e.rendition:
-                save_ipfs(cfg.ipfs_client, r, cfg.ipfs_dir)
+        logging.info("Publish iteration %d: %s of %s destinations left:\n   : %s" % (iteration, len(to_write), len(stage), '\n   : '.join(['@@'.join([str(s) for s in t]) for t in to_write])))
+        next_write = set()
 
         # now build the HTML for everything in the different contexts and add to the graph
-        for e, dests in stage.items():
-            for ctx in HTML_FOR_CONTEXT:
-                ctx_safe = tg.safePath(ctx)
-                try:
-                    body = get_html_body(tg, e, tg.entities[ctx_safe], cfg.ipfs_client, markdown_processor, cfg.ipfs_dir)
+        for item in to_write:
+            e, ctx = item
+            tpl, dest = stage[item]
+            htmlProperty = HTML_FOR_CONTEXT[ctx]
 
-                    body = re.sub("<p>\s*<false-content([^>]*)>\s*</false-content>\s*</p>", lambda m: resolve_content_reference(m, tg, cfg.id_base, stage, e, True), body)
-                    body = re.sub("<p>\s*<false-content([^>]*)>\s*</p>", lambda m: resolve_content_reference(m, tg, cfg.id_base, stage, e, True), body)
-                    body = re.sub("<false-content([^>]*)>\s*</false-content>", lambda m: resolve_content_reference(m, tg, cfg.id_base, stage, e, True), body)
-                    body = re.sub("<false-content([^>]*)>", lambda m: resolve_content_reference(m, tg, cfg.id_base, stage, e, False), body)
+            if htmlProperty in e:
+                raise PublishError("%s: already have inner html for %s" % (e, ctx))
+                continue
 
-                    tg.add(e.id, HTML_FOR_CONTEXT[ctx], rdflib.Literal(body))
-                except PublishNotReadyError:
-                    continue # maybe it'll be ready next time round
+            ctx_safe = tg.safePath(ctx)
+            try:
+                body = get_html_body(tg, e, tg.entities[ctx_safe], cfg.ipfs_client, markdown_processor, cfg.ipfs_dir)
 
-        # finally build and save out all the pages
-        for e, dests in stage.items():
-            for ctx in dests:
-                tpl, dest = dests[ctx]
-                if dest in written:
-                    logging.debug("%s: already wrote %s" % (e, dest))
-                    continue
+                body = re.sub("<p>\s*<false-content([^>]*)>\s*</false-content>\s*</p>", lambda m: resolve_content_reference(m, tg, cfg.id_base, stage, e, True), body)
+                body = re.sub("<p>\s*<false-content([^>]*)>\s*</p>", lambda m: resolve_content_reference(m, tg, cfg.id_base, stage, e, True), body)
+                body = re.sub("<false-content([^>]*)>\s*</false-content>", lambda m: resolve_content_reference(m, tg, cfg.id_base, stage, e, True), body)
+                body = re.sub("<false-content([^>]*)>", lambda m: resolve_content_reference(m, tg, cfg.id_base, stage, e, False), body)
 
-                content = tpl.render(e.po)
+                logging.debug("Adding this body to %s@@%s:\n%s..." % (e, htmlProperty, body[:100]))
 
-                os.makedirs(os.path.dirname(dest), exist_ok=True)
-                logging.debug("%s: writing %s" % (e, dest))
-                with open(dest,'w') as f:
-                    f.write(content)
+            except PublishNotReadyError:
+                next_write.add((e, ctx))
+                continue # maybe it'll be ready next time round
 
-                to_write.remove(dest)
-                written.add(dest)
-                progress = True
+            # Add the inner (markdown-derived) html to the graph for templates to pick up
+            tg.add(e.id, htmlProperty, rdflib.Literal(body))
 
-        if not to_write:
-            break
+            content = e.render(tpl)
+
+            os.makedirs(os.path.dirname(dest), exist_ok=True)
+            logging.debug("%s@@%s: writing %s" % (e, ctx, dest))
+            with open(dest,'w') as f:
+                f.write(content)
+
+            progress = True
+
+        to_write = next_write
 
     if to_write:
-        raise PublishError("Embed loop, can't render these: %s" % '\n'.join(to_write))
+        raise PublishError("Embed loop, can't render these:\n   : %s" % '\n   : '.join(['@@'.join([str(s) for s in t]) for t in to_write]))
     else:
         logging.info("All written successfully.")
 

@@ -1,1 +1,1 @@
-<div class="picture-asEmbed"><a href="{{ url }}">{{ asEmbed|safe }}<p>{{ caption }}</p></a></div>
+<div class="asEmbed"><a href="{{ url }}">{{ asEmbed|safe }}<p>{{ caption }}</p></a></div>

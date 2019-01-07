@@ -64,6 +64,9 @@ class TemplatableEntity:
         # TemplatableEntity can == other types, but not the other way around.
         return self.__hash__() == other.__hash__()
 
+    def __contains__(self, predicate):
+        return predicate in self.po
+
     def debug(self):
         return repr(self).replace('&','&amp;').replace('<','&lt;')
 
@@ -77,6 +80,9 @@ class TemplatableEntity:
             r.update(o.walk(p))
 
         return r
+
+    def render(self, template):
+        return template.render(self.po)
 
     def type(self):
         parentTypes = TemplatableSet()

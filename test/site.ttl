@@ -13,16 +13,16 @@
 
 # We can start defining things now.
 
-<Site> a :Site .
-# This statement defines a Web site with ID <Site>.
+<site> a :Site .
+# This statement defines a Web site with ID <site>.
 # URLs always go in angle brackets.
 # FALSE interprets URLs relative to a base URL defined in run_me.sh. Use relative URLs for entities you're going to define yourself.
 
 # Give the web site a name.
-<Site> skos:prefLabel "FALSE demo site"@en .
+<site> skos:prefLabel "FALSE demo site"@en .
 
 # And some content for the front page. Multi-line content goes in triple quotes.
-<Site> :markdown """
+<site> :markdown """
 This web site demonstrates as many features of FALSE as I could fit in.
 
 This text comes from the [](markdown) in the site definition file.
@@ -46,6 +46,7 @@ This text comes from the [](markdown) in the site definition file.
 """
 FALSE supports all the features of standard Markdown,
 but links and embeds are more powerful than standard Markdown.
+Download the source file to see how things are done.
 
 ## Linking to things
 
@@ -81,19 +82,18 @@ If you just want to embed an image from the internet, you can still do that, but
 
 ![a kitten](http://placekitten.com/150/150)
 
-You can also embed using the special HTML tag `false-embed`
-
-<false-embed src="lingshed">
-
-And you can have teasers with `false-teaser`
-
-<false-teaser src="lingshed">
-
-All of these are special cases of `false-content` with a supplied context.
-
-<false-content context="http://id.colourcountry.net/false/embed" src="lingshed">
+### Teasers
 
 <false-content context="http://id.colourcountry.net/false/teaser" src="lingshed">
+<false-content context="http://id.colourcountry.net/false/teaser" src="mentions">
+
+Teasers are a fancy way to link to another entity. The special &lt;false-content&gt; HTML tag provides access to these
+
+### Advanced embedding
+
+Regular embeds can also be specified with &lt;false-content&gt; though I am not sure why you'd want to.
+
+<false-content context="http://id.colourcountry.net/false/embed" src="lingshed"></false-content>
 
 [1]: templates "Footnote style links are also supported."
 [2]: mentions
@@ -113,7 +113,7 @@ FALSE uses Jinja2 templates to build its pages.
 .
 
 <renditions> a :Document
-;  :featuresOn <Site>
+;  :featuresOn <site>
 ;  skos:prefLabel "Renditions"@en
 ;  :updated "2018-10-15T23:08:00.000+01:00"^^xsd:dateTime
 ;  :markdown
