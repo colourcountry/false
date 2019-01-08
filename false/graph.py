@@ -4,6 +4,9 @@ import rdflib, re, os, logging
 
 from rdflib.namespace import RDF, OWL, SKOS
 
+class RequiredAttributeError(AttributeError):
+    pass
+
 class TemplatableSet(set):
     '''This set can be referenced in templates.
     If there are multiple items in the set they are concatenated.
@@ -31,12 +34,22 @@ class TemplatableSet(set):
         for i in self:
             return i
 
+    def require(self, a):
+        '''Return a TemplatableSet for an attribute and require a non-null response.'''
+        s = self.get(a)
+
+        if not s:
+            raise RequiredAttributeError('no set items had required property %s' % a)
+
+        return s
+
+
     def get(self, a):
         '''Return a TemplatableSet for an attribute, empty or otherwise.'''
+        # This is used inside __getattr__ so we cannot raise AttributeError
+        # (it will get mysteriously swallowed, even if unrelated to self)
         s = TemplatableSet()
         for i in self:
-            # Any AttributeError raised inside __getattr__ will get mysteriously swallowed,
-            # even if unrelated to self, so check first
             if hasattr(i, a):
                 g = getattr(i, a)
                 if isinstance(g, set):
@@ -53,14 +66,20 @@ class TemplatableSet(set):
             raise AttributeError # jinja2 tries this before escaping
 
         s = self.get(a)
-        if s:
-            return s
-        else:
-            raise AttributeError
+        if not s:
+            raise AttributeError(a)
+        return s
 
 class TemplatableEntity:
     def __init__(self, s, safe):
-        self.id = rdflib.URIRef(s)
+        if isinstance(s, rdflib.BNode):
+            # this is a bit nasty, but
+            # in order to reference blank nodes in internally-generated src attributes,
+            # we need them to live in a URI scheme
+            logging.debug("Protected blank node %s" % s)
+            self.id = rdflib.URIRef("_:"+str(s))
+        else:
+            self.id = s
         self.safe = safe
         self.po = {'this': self}
         self.op = {}
@@ -94,10 +113,11 @@ class TemplatableEntity:
         return template.render(self.po)
 
     def type(self):
+        directTypes = self.get('rdf_type')
         parentTypes = TemplatableSet()
-        for t in self.rdf_type:
+        for t in directTypes:
             parentTypes.update(t.walk('rdfs_subClassOf'))
-        return self.rdf_type.difference(parentTypes)
+        return directTypes.difference(parentTypes)
 
     def rels(self, o):
         return TemplatableSet(p for p in self.op.get(o.safe, []))
@@ -125,16 +145,29 @@ class TemplatableEntity:
                 self.op[o.safe] = TemplatableSet()
             self.op[o.safe].add(p)
 
-    def __getattr__(self, a):
-        if a in self.po:
+    def get(self, a):
+        try:
             return self.po[a]
-        return TemplatableSet()
+        except KeyError:
+            return TemplatableSet()
+
+    def __getattr__(self, a):
+        try:
+            return self.po[a]
+        except KeyError:
+            raise AttributeError(a)
+
+    def require(self, a):
+        try:
+            return getattr(self, a)
+        except AttributeError:
+            raise RequiredAttributeError('missing required property %s' % a)
 
     def __str__(self):
         return self.id
 
     def __repr__(self):
-        r = "<Entity %s %s (%s) :=\n" % (self.id, hash(self), self.safe)
+        r = "<Entity %s %s (%s) :=\n" % (self.id, id(self), self.safe)
         for p in self.po:
             if isinstance(self.po[p], set):
                 j = ','.join(str(x) for x in self.po[p])
@@ -228,14 +261,23 @@ class TemplatableGraph:
             self.add(s, p, o)
 
     def safePath(self, p):
+        if ":" not in p:
+            logging.warn('no prefix or protocol for safe-path %s' % p)
+
         for (px, n) in self.g.namespaces():
             if p.startswith(n):
                 if px=='':
-                    return p[len(n):]
+                    p = p[len(n):]
+                    break
                 else:
-                    return px+'_'+p[len(n):]
-        # NOTE: prefixes and protocols can collide
-        return re.sub('[^A-Za-z0-9]','_',p)
+                    p = px+'_'+p[len(n):]
+                    break
+        else:
+            if p.startswith("_:"): # blank nodes
+                p = p[2:]
+
+        # FIXME: prefixes and protocols can collide
+        return re.sub('[^A-Za-z0-9-]','_',p)
 
     def __contains__(self, e):
         return (e in self.entities)
@@ -304,7 +346,7 @@ class TemplatableGraph:
         del(tep.so[ss])
 
     def add(self, s, p, o):
-        ss, sp, so = self.safePath(s), self.safePath(p), self.safePath(o)
+        ss, sp = self.safePath(s), self.safePath(p)
         if ss not in self.entities:
             self.entities[ss] = TemplatableEntity(s, ss)
         tes = self.entities[ss]
@@ -317,12 +359,14 @@ class TemplatableGraph:
         if isinstance(o,rdflib.Literal):
             tes.add(tep, o)
             tep.addso(tes, o)
-        else:
-            if so not in self.entities:
-                self.entities[so] = TemplatableEntity(o, so)
-            teo = self.entities[so]
+            return
 
-            teo.add(teip, tes)
-            tes.add(tep, teo)
-            tep.addso(tes, teo)
-            teip.addso(teo, tes)
+        so = self.safePath(o)
+        if so not in self.entities:
+            self.entities[so] = TemplatableEntity(o, so)
+        teo = self.entities[so]
+
+        teo.add(teip, tes)
+        tes.add(tep, teo)
+        tep.addso(tes, teo)
+        teip.addso(teo, tes)

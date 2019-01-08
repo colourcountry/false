@@ -108,4 +108,5 @@ ipfs/
 .embed.*
 .page.*
 .teaser.*
+false.log
 

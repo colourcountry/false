@@ -74,6 +74,7 @@ The embedded image is automatically rendered in a nice way, with a link leading 
 And because the image has a caption defined, and a description for the alt-text, there is no need to supply these every time you embed it.
 
 This isn't limited to images: any document can be embedded, including other documents written in Markdown.
+(Use templates and CSS to determine whether users know that something was embedded, or not.)
 
 ![](reusable)
 

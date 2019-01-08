@@ -14,6 +14,12 @@ F = rdflib.Namespace("http://id.colourcountry.net/false/")
 
 HTML_FOR_CONTEXT = { F.teaser: F.asTeaser, F.embed: F.asEmbed, F.page: F.asPage }
 
+PUB_FAIL_MSG = """
+---------------------------------------------------------------------------------
+PUBLISH FAILED
+These entities couldn't be rendered:
+"""
+
 class PublishError(ValueError):
     pass
 
@@ -45,7 +51,7 @@ class ImgRewriter(markdown.treeprocessors.Treeprocessor):
             logging.debug("Found link with href %s" % href)
             if href_safe in self.tg.entities:
                 e = self.tg.entities[href_safe]
-                if e.url:
+                if 'url' in e:
                     link.set('href', e.url)
                     if not link.text:
                         link.text = str(e.skos_prefLabel)
@@ -94,7 +100,10 @@ def resolve_content_reference(m, tg, base, stage, e, in_p=False):
     for mm in re.finditer('(\S+)="([^"]*)"', m.group(1)):
         attrs[mm.group(1)]=mm.group(2)
 
-    src = urllib.parse.urljoin(base, attrs["src"])
+    if attrs["src"].startswith("_:"): # don't resolve blank nodes
+        src = attrs["src"]
+    else:
+        src = urllib.parse.urljoin(base, attrs["src"])
     src_safe = tg.safePath(src)
     ctx = rdflib.URIRef(attrs["context"])
 
@@ -107,8 +116,7 @@ def resolve_content_reference(m, tg, base, stage, e, in_p=False):
         with open(fn,'r') as f:
             return f.read()
     except FileNotFoundError:
-        logging.debug("can't resolve %s@@%s: not yet built" % (src, ctx))
-        raise PublishNotReadyError
+        raise PublishNotReadyError("requires %s@@%s" % (src, ctx))
 
 def get_html_body_for_rendition(tg, e, r, ipfs_client, markdown_processor, ipfs_dir):
     def get_charset(r, e, mt):
@@ -150,7 +158,7 @@ def find_renditions_for_context(rr, ctx):
                         if u == v:
                             out.append(s)
                 return out
-    for f in ctx.fallback:
+    for f in ctx.get('fallback'):
         out = find_renditions_for_context(rr, f)
         if out:
             return out
@@ -158,7 +166,7 @@ def find_renditions_for_context(rr, ctx):
 
 
 def get_html_body(tg, e, ctx, ipfs_client, markdown_processor, ipfs_dir):
-    rr = e.rendition
+    rr = e.get('rendition')
     available = find_renditions_for_context(rr, ctx)
     logging.debug("%s@@%s: %s of %s renditions available" % (e, ctx, len(available), len(rr)))
 
@@ -174,7 +182,8 @@ def publish_graph(g, cfg):
 
     jinja_e = jinja2.Environment(
         loader=jinja2.FileSystemLoader(cfg.template_dir),
-        autoescape=True
+        autoescape=True,
+        trim_blocks=True
     )
 
     markdown_processor = markdown.Markdown(output_format="html5", extensions=[ImgRewriteExtension(tg=tg, base=cfg.id_base)])
@@ -211,7 +220,7 @@ def publish_graph(g, cfg):
                     e_types = None # found a renderable type
 
                     # FIXME: some contexts are still valid here (like teaser)
-                    if e.url:
+                    if 'url' in e:
                         # graph specified the URL, don't make one
                         break
                     elif F.WebPage in e.rdf_type:
@@ -234,9 +243,12 @@ def publish_graph(g, cfg):
 
     logging.info("Stage is ready: %s destinations, %s entities" % (len(stage), len(entities_to_write)))
 
+    if not home_page:
+        raise PublishError("Home page %s is not staged, can't continue" % cfg.home_site)
+
     # first put all the renditions up, in case referenced by a template
     for e in entities_to_write:
-        for r in e.rendition:
+        for r in e.get('rendition'):
             save_ipfs(cfg.ipfs_client, r, cfg.ipfs_dir)
 
     iteration = 0
@@ -245,11 +257,12 @@ def publish_graph(g, cfg):
     while progress:
         iteration += 1
         progress = False
-        logging.info("Publish iteration %d: %s of %s destinations left:\n   : %s" % (iteration, len(to_write), len(stage), '\n   : '.join(['@@'.join([str(s) for s in t]) for t in to_write])))
+        logging.info("Publish iteration %d: %s of %s destinations left:\n     %s" % (iteration, len(to_write), len(stage), '\n     '.join(['@@'.join([str(s) for s in t]) for t in to_write])))
         next_write = set()
 
         # now build the HTML for everything in the different contexts and add to the graph
         for item in to_write:
+            item = item[:2]
             e, ctx = item
             tpl, dest = stage[item]
             htmlProperty = HTML_FOR_CONTEXT[ctx]
@@ -259,24 +272,31 @@ def publish_graph(g, cfg):
                 continue
 
             ctx_safe = tg.safePath(ctx)
-            try:
-                body = get_html_body(tg, e, tg.entities[ctx_safe], cfg.ipfs_client, markdown_processor, cfg.ipfs_dir)
-
-                body = re.sub("<p>\s*<false-content([^>]*)>\s*</false-content>\s*</p>", lambda m: resolve_content_reference(m, tg, cfg.id_base, stage, e, True), body)
-                body = re.sub("<p>\s*<false-content([^>]*)>\s*</p>", lambda m: resolve_content_reference(m, tg, cfg.id_base, stage, e, True), body)
-                body = re.sub("<false-content([^>]*)>\s*</false-content>", lambda m: resolve_content_reference(m, tg, cfg.id_base, stage, e, True), body)
-                body = re.sub("<false-content([^>]*)>", lambda m: resolve_content_reference(m, tg, cfg.id_base, stage, e, False), body)
-
-                logging.debug("Adding this body to %s@@%s:\n%s..." % (e, htmlProperty, body[:100]))
-
-            except PublishNotReadyError:
-                next_write.add((e, ctx))
-                continue # maybe it'll be ready next time round
+            body = get_html_body(tg, e, tg.entities[ctx_safe], cfg.ipfs_client, markdown_processor, cfg.ipfs_dir)
 
             # Add the inner (markdown-derived) html to the graph for templates to pick up
+            logging.debug("Adding this body to %s@@%s:\n%s..." % (e, htmlProperty, body[:100]))
             tg.add(e.id, htmlProperty, rdflib.Literal(body))
 
-            content = e.render(tpl)
+            logging.debug(repr(e))
+            logging.debug(e.require(tg.safePath(htmlProperty)))
+            try:
+                content = e.render(tpl)
+            except (jinja2.exceptions.UndefinedError, RequiredAttributeError) as err:
+                # If an attribute is missing it may be a body for another entity/context that is not yet rendered
+                logging.info("%s@@%s deferred: %s" % (e, ctx, err))
+                next_write.add((e, ctx, err))
+                continue
+
+            try:
+                content = re.sub("<p>\s*<false-content([^>]*)>\s*</false-content>\s*</p>", lambda m: resolve_content_reference(m, tg, cfg.id_base, stage, e, True), content)
+                content = re.sub("<p>\s*<false-content([^>]*)>\s*</p>", lambda m: resolve_content_reference(m, tg, cfg.id_base, stage, e, True), content)
+                content = re.sub("<false-content([^>]*)>\s*</false-content>", lambda m: resolve_content_reference(m, tg, cfg.id_base, stage, e, True), content)
+                content = re.sub("<false-content([^>]*)>", lambda m: resolve_content_reference(m, tg, cfg.id_base, stage, e, False), content)
+            except PublishNotReadyError as err:
+                logging.info("%s@@%s deferred: %s" % (e, ctx, err))
+                next_write.add((e, ctx, err))
+                continue
 
             os.makedirs(os.path.dirname(dest), exist_ok=True)
             logging.debug("%s@@%s: writing %s" % (e, ctx, dest))
@@ -288,7 +308,10 @@ def publish_graph(g, cfg):
         to_write = next_write
 
     if to_write:
-        raise PublishError("Embed loop, can't render these:\n   : %s" % '\n   : '.join(['@@'.join([str(s) for s in t]) for t in to_write]))
+        err_list = []
+        for item in to_write:
+            err_list.append("%s@@%s: %s" % item)
+        raise PublishError("%s\n     %s\n\n" % (PUB_FAIL_MSG, '\n     '.join(err_list)))
     else:
         logging.info("All written successfully.")
 

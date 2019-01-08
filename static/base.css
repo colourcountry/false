@@ -104,17 +104,20 @@ img
 
 .asEmbed
 {
-	margin: 0 1em 1em 0;
 	padding: 1em;
-    max-width: 100%;
-    max-height: 600px;
+  max-width: 100%;
 	min-width: 400px;
 	border-left: 8px solid red;
-    background-color: black;
-    display: table;
+  background-color: black;
+  display: table;
 }
 
-.asEmbed p
+figure
+{
+	max-height: 600px;
+}
+
+figcaption
 {
     font-size: 80%;
     font-style: italic;

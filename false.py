@@ -8,7 +8,7 @@ import ipfsapi
 import jinja2, markdown
 import pprint
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.DEBUG, filename=os.environ.get("FALSE_LOG_FILE", None))
 
 if __name__=="__main__":
 

@@ -1,6 +1,6 @@
 {% extends "page/Content" %}
 
-{% block links %}
+{%- block links %}
             {% if features %}
                 <h3>Contents</h3>
                 <ul>
@@ -9,4 +9,4 @@
                     {% endfor %}
                 </ul>
             {% endif %}
-{% endblock %}
+{% endblock -%}

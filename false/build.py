@@ -147,7 +147,7 @@ def build_graph(g, cfg):
             entities[s] = s
         if p == RDF.type:
             if o == F.Content or o in doc_types:
-                logging.debug("Found content %s" % s)
+                logging.debug("Found content %s (%s)" % (s, s.__class__.__name__))
                 entities[s] = s
                 content[s] = CONTENT_NEW
 

@@ -2,7 +2,7 @@
 
 {% set body_class = "content" %}
 
-{% block headline %}
+{%- block headline %}
         <h1>{{ skos_prefLabel }}</h1>
         <h2>a <a href="{{ this.type().url }}" rel="http://www.w3.org/1999/02/22-rdf-syntax-ns#type">{{ this.type().skos_prefLabel }}</a></h2>
         {% if description %}
@@ -14,17 +14,17 @@
             {% if published %} published on {{ published }}, {% endif %}
             {% if updated %} updated {{ updated }}, {% endif %}
         </p>
-{% endblock %}
+{% endblock -%}
 
-{% block content %}
+{%- block content %}
         {% for html in asPage %}
             <section>
                 {{ html|safe }}
             </section>
         {% endfor %}
-{% endblock %}
+{% endblock -%}
 
-{% block downloads %}
+{%- block downloads %}
          {% if rendition %}
                 <h3>Download</h3>
                 <ul>
@@ -35,4 +35,4 @@
                     {% endfor %}
                 </ul>
         {% endif %}
-{% endblock %}
+{% endblock -%}

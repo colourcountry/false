@@ -91,6 +91,13 @@ wiki:Q4254089 :url wikipage:Q4254089
 #  OK let's do another one without all the comments.
 
 w:India a w:Place
+;  :description [ a :Document; :markdown """
+India is the seventh-largest country by area, the second-most populous country (with over 1.2 billion people), and the most populous democracy in the world. Bounded by 
+the Indian Ocean on the south, the Arabian Sea on the southwest, and the Bay of Bengal on the southeast, it shares land borders with Pakistan to the west; 
+China, Nepal, and Bhutan to the northeast; and Bangladesh and Myanmar to the east. In the Indian Ocean, India is in the vicinity of Sri Lanka and the Maldives, 
+while its Andaman and Nicobar Islands share a maritime border with Thailand and Indonesia...
+""" ]
+
 ;  skos:prefLabel "India"@en
 ;  skos:exactMatch wiki:Q668
 .
