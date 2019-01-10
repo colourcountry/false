@@ -29,9 +29,14 @@ CONTEXTS = {
              "": F.download
         }
 
+# Local content can appear in these contexts
+CONTEXTS_FOR_RIGHTS = {
+            F.public: set((F.teaser, F.embed, F.page, F.download)),
+            F.restricted: set((F.teaser, F.embed, F.page))
+}
+
 # Remote content, or non-content, can only appear as a teaser
-LIMITED_CONTEXTS = { ".teaser.": F.teaser,
-                     "teaser.": F.teaser }
+LIMITED_CONTEXTS = set(F.teaser)
 
 CONTENT_NEW = 0
 CONTENT_READY = 1
@@ -144,6 +149,14 @@ def build_graph(g, cfg):
     gg.bind('rdfs', RDFS)
     gg.bind('ipfs', cfg.ipfs_namespace)
 
+    # first excise all private stuff, we don't want to know about it
+    for triple in g.triples((None, F.hasPublicationRights, F.private)):
+        entity_id = triple[0]
+        logging.info("%s: is private, dropping" % entity_id)
+        g.remove((entity_id, None, None))
+        g.remove((None, entity_id, None))
+        g.remove((None, None, entity_id))
+
     doc_types = [x[0] for x in g.query("""select ?t where { ?t rdfs:subClassOf+ :Content }""")]
 
     content = {}
@@ -199,7 +212,6 @@ def build_graph(g, cfg):
             gg.add((s, p, o))
 
     for content_id in entities:
-
         # TODO: do this more nicely
         if content_id not in content:
             if content_id.startswith(cfg.id_base):
@@ -210,14 +222,25 @@ def build_graph(g, cfg):
                 # To tease it, bring it into our world with an ID and skos:exactMatch it to the external entity
                 continue
         elif content_id.startswith(cfg.id_base):
-            valid_contexts = CONTEXTS
+            rights = set(g.triples((content_id, F.hasPublicationRights, None)))
+            if len(rights)>1:
+                raise rdflib.UniquenessError("%s: has multiple publication rights" % content_id)
+            elif not rights:
+                rights = F.public
+                logging.debug("%s: no publication rights specified, defaulting to public" % content_id)
+                gg.add((content_id, F.hasPublicationRights, F.public))
+            else:
+                rights = rights.pop()[2]
+            valid_contexts = CONTEXTS_FOR_RIGHTS[rights]
             gg.add((content_id, F.published, rdflib.Literal(datetime.datetime.now().isoformat(), datatype=XSD.dateTime)))
         else:
             # external content is noted, but we will not render it, see above
             content[content_id] = CONTENT_EXTERNAL
             continue
 
-        for pfx, ctx in valid_contexts.items():
+        for pfx, ctx in CONTEXTS.items():
+            if ctx not in valid_contexts:
+                continue
             for mime, ext in FILE_TYPES.items():
                 fn = url_to_path(content_id[len(cfg.id_base):], pfx=pfx, sfx=ext)
                 try:
@@ -253,5 +276,6 @@ def build_graph(g, cfg):
     for content_id in content:
         if content[content_id] not in (CONTENT_READY, CONTENT_EXTERNAL):
             raise ValueError("%s: no renditions available, cannot publish" % content_id)
+
 
     return gg

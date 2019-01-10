@@ -261,9 +261,6 @@ class TemplatableGraph:
             self.add(s, p, o)
 
     def safePath(self, p):
-        if ":" not in p:
-            logging.warn('no prefix or protocol for safe-path %s' % p)
-
         for (px, n) in self.g.namespaces():
             if p.startswith(n):
                 if px=='':

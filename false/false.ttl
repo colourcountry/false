@@ -64,7 +64,7 @@ skos:broader a owl:ObjectProperty
 ;  rdfs:subPropertyOf rdfs:label
 .
 
-:CreativeWork a owl:Class
+:Work a owl:Class
 ;  skos:prefLabel "creative work"@en
 ;  :collectiveLabel "creative works"@en
 ;  rdfs:subClassOf skos:Concept
@@ -73,7 +73,7 @@ skos:broader a owl:ObjectProperty
 :Content a owl:Class
 ;  skos:prefLabel "content"@en
 ;  :collectiveLabel "content"@en
-;  rdfs:subClassOf :CreativeWork
+;  rdfs:subClassOf :Work
 ;  skos:scopeNote "A work which can be rendered in two-dimensional visual form, especially on or as a Web site"@en
 .
 
@@ -119,6 +119,27 @@ skos:broader a owl:ObjectProperty
 #  No fallback - if there's not a specific teaser, display nothing
 .
 
+:PublicationRights a owl:Class
+;  skos:prefLabel "publication rights"@en
+;  :collectiveLabel "publication rights"@en
+;  rdfs:subClassOf skos:Concept
+.
+
+:private a :PublicationRights
+;  skos:prefLabel "private"@en
+;  skos:scopeNote "This item is private. It must not be published or referred to by anything that is published."
+.
+
+:restricted a :PublicationRights
+;  skos:prefLabel "restricted"@en
+;  skos:scopeNote "This item is not available for download, but it can still be published in page, embed or teaser contexts. The website owner should ensure that the renditions available for these contexts are suitable for publication."
+.
+
+:public a :PublicationRights
+;  skos:prefLabel "public"@en
+;  skos:scopeNote "All renditions of this item may be published."
+.
+
 :mediaType a owl:DatatypeProperty
 ;  skos:prefLabel "media type"@en
 ;  rdfs:domain :Media
@@ -143,9 +164,15 @@ skos:broader a owl:ObjectProperty
 ;  rdfs:range :Context
 .
 
+:hasPublicationRights a owl:ObjectProperty
+;  skos:prefLabel "has publication rights"@en
+;  rdfs:domain skos:Concept # non-content can still have pages published for it, so can still have rights
+;  rdfs:range :Context
+.
+
 :rendition a owl:ObjectProperty
 ;  skos:prefLabel "rendition"@en
-;  rdfs:domain :CreativeWork
+;  rdfs:domain :Work
 ;  rdfs:range :Media
 .
 
@@ -195,14 +222,14 @@ skos:broader a owl:ObjectProperty
 
 :published a owl:DatatypeProperty
 ;  skos:prefLabel "published"@en
-;  rdfs:domain :Content
+;  rdfs:domain :Work # can all works be published? Some non-Content can (software, curations...)
 ;  rdfs:range xsd:dateTime
 .
 
 :incorporates a owl:ObjectProperty
 ;  skos:prefLabel "incorporates"@en
-;  rdfs:domain :CreativeWork
-;  rdfs:range :CreativeWork
+;  rdfs:domain :Work
+;  rdfs:range :Work
 ;  rdfs:subPropertyOf skos:narrower
 .
 
@@ -214,8 +241,8 @@ skos:broader a owl:ObjectProperty
 
 :links a owl:ObjectProperty
 ;  skos:prefLabel "links to"@en
-;  rdfs:domain :CreativeWork
-;  rdfs:range :CreativeWork
+;  rdfs:domain :Work
+;  rdfs:range :Work
 ;  rdfs:subPropertyOf skos:related
 .
 
@@ -227,7 +254,7 @@ skos:broader a owl:ObjectProperty
 
 :mentions a owl:ObjectProperty
 ;  skos:prefLabel "mentions"@en
-;  rdfs:domain :CreativeWork
+;  rdfs:domain :Work
 ;  rdfs:range skos:Concept
 ;  rdfs:subPropertyOf skos:related
 .

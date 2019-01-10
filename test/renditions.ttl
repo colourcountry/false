@@ -29,7 +29,19 @@ and so on.
 
 Templates can access these using `{{ rendition }}`.
 
-FALSE will choose the rendition most suitable for presenting on a Web site
-and generate HTML code for it that can be included using `{{ html }}`.
+## Renditions and contexts
+
+FALSE defines four contexts: `page`, `embed`, `teaser` and `download`.
+Often, a different rendition is suitable for different contexts, for example thumbnails of different sizes.
+
+## Renditions and privacy
+
+You might want to publish cut-down renditions, but keep the original files for yourself. Entities like this are termed [restricted](restricted)
+
+![](restricted)
+
+You can also specify that an entity is [private](private), in which case it will not be published and no renditions will be available.
+
+![](private)
 """@en
 .

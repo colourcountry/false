@@ -41,35 +41,46 @@ class ImgRewriter(markdown.treeprocessors.Treeprocessor):
 
     def run(self, doc):
 
-        for image in doc.findall('.//img'):
-            src = urllib.parse.urljoin(self.base, image.get('src'))
-            logging.debug("Found image with src %s" % src)
-            src_safe = self.tg.safePath(src)
-            if src_safe in self.tg.entities:
-                image.set('src', src)
-                image.set('context', F.embed)
-                image.tag = 'false-content'
-            else:
-                pass # sometimes an image is just an image
-
-        for link in doc.findall('.//a'):
-            href = urllib.parse.urljoin(self.base, link.get('href'))
-            href_safe = self.tg.safePath(href)
-            logging.debug("Found link with href %s" % href)
-            if href_safe in self.tg.entities:
-                e = self.tg.entities[href_safe]
-                if 'url' in e:
-                    link.set('href', e.url)
-                    if not link.text:
-                        link.text = str(e.skos_prefLabel)
-                    if F.Content not in e.rdf_type: # FIXME: duplicates logic from build
-                        link.set('rel', str(F.mentions))
+        for parent in doc.findall('.//img/..'):
+            for image in parent.findall('.//img'):
+                src = urllib.parse.urljoin(self.base, image.get('src'))
+                logging.debug("Found image with src %s" % src)
+                src_safe = self.tg.safePath(src)
+                if src_safe in self.tg.entities:
+                    image.set('src', src)
+                    image.set('context', F.embed)
+                    image.tag = 'false-content'
+                elif src.startswith(self.base):
+                    # this is our ID but we do not have it because it is private, or because it didn't get defined
+                    logging.info("removing embed of unknown entity %s" % src)
+                    parent.remove(image)
                 else:
-                    link.set('value', href)
-                    link.attrib.pop('href')
-                    link.tag = 'data'
-            else:
-                pass # sometimes a link is just a link
+                    # probably an image on the internet
+                    pass
+
+        for parent in doc.findall('..//a/..'):
+            for link in doc.findall('.//a'):
+                href = urllib.parse.urljoin(self.base, link.get('href'))
+                href_safe = self.tg.safePath(href)
+                logging.debug("Found link with href %s" % href)
+                if href_safe in self.tg.entities:
+                    e = self.tg.entities[href_safe]
+                    if 'url' in e:
+                        link.set('href', e.url)
+                        if not link.text:
+                            link.text = str(e.skos_prefLabel)
+                        if F.Content not in e.rdf_type: # FIXME: duplicates logic from build
+                            link.set('rel', str(F.mentions))
+                    else:
+                        link.set('value', href)
+                        link.attrib.pop('href')
+                        link.tag = 'data'
+                elif href.startswith(self.base):
+                    # this is our ID but we do not have it because it is private, or because it didn't get defined
+                    logging.info("removing link to unknown entity %s" % href)
+                    parent.remove(link)
+                else:
+                    pass # sometimes a link is just a link
 
 class ImgRewriteExtension(markdown.extensions.Extension):
     def __init__(self, **kwargs):
