@@ -8,7 +8,13 @@ import ipfsapi
 import jinja2, markdown
 import pprint
 
-logging.basicConfig(level=logging.DEBUG, filename=os.environ.get("FALSE_LOG_FILE", None))
+log_handlers=[logging.StreamHandler()]
+log_handlers[0].setLevel(logging.INFO)
+try:
+    log_handlers.append(logging.FileHandler(os.environ["FALSE_LOG_FILE"]))
+except KeyError:
+    pass
+logging.basicConfig(level=logging.DEBUG,handlers=log_handlers)
 
 if __name__=="__main__":
 

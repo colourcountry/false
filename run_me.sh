@@ -14,7 +14,8 @@ rm -fr "$FALSE_OUT"
 mkdir -p "$FALSE_OUT/ipfs"
 
 ./convert_images.sh "$FALSE_SRC"
+cp -avu static "$FALSE_OUT/static"
 
 export FALSE_HOME_PAGE=`time python3 false.py`
-cp -avu static "$FALSE_OUT/static"
+
 python3 server.py "$FALSE_HOME_PAGE"

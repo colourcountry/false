@@ -1,0 +1,57 @@
+# Let's make a Web site with FALSE!
+
+# First, some housekeeping. These next three lines will begin pretty much every file.
+
+            # I'll be using a lot of the stuff FALSE has defined for us, so I'll declare a prefix first.
+            @prefix : <http://id.colourcountry.net/false/> .
+            # This means that when you see an ID like :Site, it refers to something defined by FALSE,
+            # in this case <http://www.colourcountry.net/false/model/Site>
+
+            # I will also be using SKOS quite a bit.
+            # SKOS defines simple things like labels, notes on concepts, and relations between them.
+            @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+
+            # In addition I'll grab XSD for its dateTime type, which FALSE uses.
+            @prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
+
+# I can start defining things now.
+
+<site> a :Site .
+# This statement defines a Web site with ID <site>.
+# URLs always go in angle brackets.
+# FALSE interprets URLs relative to a base URL defined in run_me.sh. Use relative URLs for entities you're going to define yourself.
+
+# Give the web site a name.
+<site> skos:prefLabel "FALSE demo site"@en .
+
+# And some content for the front page. Multi-line content goes in triple quotes.
+# False uses Markdown as the syntax for normal text.
+<site> :markdown """
+This web site demonstrates as many features of FALSE as I could fit in.
+
+![](whatisfalse)
+"""@en
+.
+
+# ![](whatisfalse) is an embedded document which I need to define.
+# Here's a more condensed way to define a document.
+# The difference is, instead of repeating the ID like `<site>` above, we can string statements together with `;`
+
+<whatisfalse> a :Document
+    ;  skos:prefLabel "What is FALSE?"@en
+    ;  :markdown """
+# What is FALSE
+
+FALSE is a Fully Automated <s>Luxury</s> Lightweight Semantic Engine.
+
+It is a static web site generator powered by RDF and IPFS, with a dash of [Markdown][1] and a sprinkle of [Jinja][2].
+
+[1]: markdown
+[2]: jinja
+"""@en
+.
+
+# The `;` syntax is part of Turtle, the Terse Triple Language, which is what this file uses.
+
+# FALSE will pull together all the Turtle files it can find to build the web site.
+# The document <markdown> referenced just now can be found in the file `markdown.ttl`

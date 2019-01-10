@@ -1,56 +1,18 @@
-# Let's make a Web site with FALSE!
-
-# I'll be using a lot of the stuff FALSE has defined for us, so I'll declare a prefix first.
 @prefix : <http://id.colourcountry.net/false/> .
-# This means that when you see an ID like :Site, it refers to something defined by FALSE,
-# in this case <http://www.colourcountry.net/false/model/Site>
-
-# I will also be using SKOS quite a bit.
-# SKOS defines simple things like labels, notes on concepts, and relations between them.
 @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
-# In addition I'll grab XSD for its dateTime type, which FALSE uses.
 @prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
-
-# We can start defining things now.
-
-<site> a :Site .
-# This statement defines a Web site with ID <site>.
-# URLs always go in angle brackets.
-# FALSE interprets URLs relative to a base URL defined in run_me.sh. Use relative URLs for entities you're going to define yourself.
-
-# Give the web site a name.
-<site> skos:prefLabel "FALSE demo site"@en .
-
-# And some content for the front page. Multi-line content goes in triple quotes.
-<site> :markdown """
-This web site demonstrates as many features of FALSE as I could fit in.
-
-This text comes from the [](markdown) in the site definition file.
-
-![](whatisfalse)
-"""
-.
-# In the Markdown above, [](markdown) is a link, and ![](whatisfalse) is an embedded object.
-# We need to define these documents so that FALSE can link them up. Here's a more condensed way to define an object.
-
-<whatisfalse> a :Document
-;  skos:prefLabel "What is FALSE?"@en
-.
-# <whatisfalse> doesn't have content defined directly. Instead FALSE will look in this directory
-# for matching files, like "whatisfalse.md", and automatically connect them to the document.
 
 <markdown> a :Document
 ;  skos:prefLabel "Markdown"@en
 ;  :updated "2018-10-12T10:18:00.000Z"^^xsd:dateTime
-;  :markdown
-"""
+;  :markdown """
 FALSE supports all the features of standard Markdown,
 but links and embeds are more powerful than standard Markdown.
 Download the source file to see how things are done.
 
 ## Linking to things
 
-You can link to any document using its ID: here is one about [](templates)
+You can link to any document using its ID: here is one about [templates](jinja)
 
 URLs are relative to the base ID supplied to the build process, so you can easily link to the documents you've defined.
 (Absolute URLs are ok, but note that any prefixes defined in the TTL aren't accessible to markdown.)
@@ -107,46 +69,11 @@ In future FALSE may allow you to define your own contexts and refer to them in t
 """@en
 .
 
-<templates> a :Document
-;  skos:prefLabel "Templates"@en
-;  :markdown
-"""
-FALSE uses Jinja2 templates to build its pages.
-"""@en
-.
+# FALSE will stitch plain Markdown files to entities, as well as images. Here it'll get the content from `reusable.md`
 
 <reusable> a :Document
 ;  skos:prefLabel "Reusable content"@en
 .
 
-<renditions> a :Document
-;  :featuresOn <site>
-;  skos:prefLabel "Renditions"@en
-;  :updated "2018-10-15T23:08:00.000+01:00"^^xsd:dateTime
-;  :markdown
-"""
-A rendition is a representation of a document,
-for example as a media file.
+# But personally I prefer to keep the Markdown with the rest of the entity and define it in the Turtle file.
 
-You are reading a rendition of this document
-sourced from inline markdown in the TTL.
-
-FALSE will look for additional renditions
-in files in the same directory that match the ID.
-
-This document's ID is `renditions` so FALSE will
-look for files beginning `renditions`:
-
-  * `renditions.md`
-  * `renditions.html`
-  * `renditions.mp4`
-  * `renditions.svg`
-
-and so on.
-
-Templates can access these using `{{ rendition }}`.
-
-FALSE will choose the rendition most suitable for presenting on a Web site
-and generate HTML code for it that can be included using `{{ html }}`.
-"""@en
-.

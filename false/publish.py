@@ -12,7 +12,14 @@ EXTERNAL_LINKS = {
 
 F = rdflib.Namespace("http://id.colourcountry.net/false/")
 
+# TODO: put this per-context configuration into the graph
 HTML_FOR_CONTEXT = { F.teaser: F.asTeaser, F.embed: F.asEmbed, F.page: F.asPage }
+
+# Teasers can link to anything, anywhere
+CONTEXTS_VALID_FOR_EXTERNAL_RESOURCES = set((F.teaser,))
+
+# Only content can be embedded
+CONTEXTS_VALID_FOR_NON_CONTENT = set((F.teaser, F.page))
 
 PUB_FAIL_MSG = """
 ---------------------------------------------------------------------------------
@@ -136,7 +143,7 @@ def get_html_body_for_rendition(tg, e, r, ipfs_client, markdown_processor, ipfs_
 
     for m in mt:
         if m.startswith('image/'):
-            return '<img src="%s" alt="%s">' % (r.blobURL, e.caption)
+            return '<img src="%s" alt="%s">' % (r.blobURL, e.get('caption'))
 
     if rdflib.Literal('text/html') in mt:
         # html is assumed to be a complete page
@@ -194,13 +201,30 @@ def publish_graph(g, cfg):
     home_page = None
 
     for e_safe, e in tg.entities.items():
-        dests_by_context = {}
+        allTypes = e.get('rdf_type')
+        if not allTypes:
+            logging.debug("%s: unknown type" % e)
+            continue
+
+        if F.WebPage in allTypes:
+            # object is a Web page whose ID is its URL
+            tg.add(e.id, F.url, e.id)
 
         for ctx in HTML_FOR_CONTEXT:
+            if F.Content not in allTypes and ctx not in CONTEXTS_VALID_FOR_NON_CONTENT:
+                logging.debug("%s@@%s: not valid for type %s" % (e, ctx, e.type()))
+                continue
+
+            if 'url' in e and ctx not in CONTEXTS_VALID_FOR_EXTERNAL_RESOURCES:
+                logging.debug("%s@@%s: not valid for external entity" % (e, ctx))
+                continue
+
             ctx_safe = tg.safePath(ctx)
             # use the most direct type because we need to go up in a specific order
-            # FIXME: provide ordered walk functions on entities?
+            # TODO: provide ordered walk functions on entities?
             e_types = e.type()
+
+            dest = None
 
             while e_types:
                 for e_type in e_types:
@@ -213,33 +237,27 @@ def publish_graph(g, cfg):
 
                     dest = get_page_path(e_safe, ctx_safe, e_type, cfg.output_dir)
                     url = get_page_url(e_safe, ctx_safe, e_type, cfg.url_base)
-
-                    if e.id == rdflib.URIRef(cfg.home_site) and ctx == F.page:
-                        home_page = url
-
                     e_types = None # found a renderable type
-
-                    # FIXME: some contexts are still valid here (like teaser)
-                    if 'url' in e:
-                        # graph specified the URL, don't make one
-                        break
-                    elif F.WebPage in e.rdf_type:
-                        # object is a Web page whose ID is its URL
-                        tg.add(e.id, F.url, e.id)
-                        break
-
-                    if ctx == F.page:
-                        # add the computed URL of the item as a full page, for templates to pick up
-                        tg.add(e.id, F.url, rdflib.Literal(url))
-
-                    logging.debug('%s@@%s: will render as %s -> %s' % (e, ctx, e_type, dest))
-                    stage[(e, ctx)]=(tpl, dest)
-                    entities_to_write.add(e)
                     break
 
                 if e_types is not None:
                     # get the next layer of types
                     e_types = e_types.get('rdfs_subClassOf')
+
+            if dest is None:
+                logging.debug("%s@@%s: no template available" % (e, ctx))
+                continue
+
+            logging.debug('%s@@%s: will render as %s -> %s' % (e, ctx, e_type, dest))
+            stage[(e, ctx)]=(tpl, dest)
+            entities_to_write.add(e)
+
+            if ctx == F.page:
+                # add the computed URL of the item as a full page, for templates to pick up
+                tg.add(e.id, F.url, rdflib.Literal(url))
+                if e.id == rdflib.URIRef(cfg.home_site):
+                    home_page = url
+
 
     logging.info("Stage is ready: %s destinations, %s entities" % (len(stage), len(entities_to_write)))
 
@@ -257,7 +275,7 @@ def publish_graph(g, cfg):
     while progress:
         iteration += 1
         progress = False
-        logging.info("Publish iteration %d: %s of %s destinations left:\n     %s" % (iteration, len(to_write), len(stage), '\n     '.join(['@@'.join([str(s) for s in t]) for t in to_write])))
+        logging.info("Publish iteration %d: %s of %s destinations left" % (iteration, len(to_write), len(stage)))
         next_write = set()
 
         # now build the HTML for everything in the different contexts and add to the graph
@@ -275,11 +293,9 @@ def publish_graph(g, cfg):
             body = get_html_body(tg, e, tg.entities[ctx_safe], cfg.ipfs_client, markdown_processor, cfg.ipfs_dir)
 
             # Add the inner (markdown-derived) html to the graph for templates to pick up
-            logging.debug("Adding this body to %s@@%s:\n%s..." % (e, htmlProperty, body[:100]))
+            logging.debug("Adding this body to %s@@%s:\n%s..." % (e, ctx, body[:100]))
             tg.add(e.id, htmlProperty, rdflib.Literal(body))
 
-            logging.debug(repr(e))
-            logging.debug(e.require(tg.safePath(htmlProperty)))
             try:
                 content = e.render(tpl)
             except (jinja2.exceptions.UndefinedError, RequiredAttributeError) as err:

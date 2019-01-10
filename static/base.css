@@ -124,6 +124,11 @@ figcaption
     margin: 0.5em 0 0 0;
 }
 
+.asEmbed h1
+{
+    margin-top: 0;
+}
+
 .asTeaser
 {
 	display: inline-block;

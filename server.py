@@ -15,5 +15,6 @@ def fav():
 def serve(fn):
     return static_file(fn, root=os.path.join(os.getcwd(),'pub'))
 
-run(host='localhost', port=8818)
+if sys.argv[1]:
+    run(host='localhost', port=8818)
 

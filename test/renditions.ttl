@@ -1,0 +1,35 @@
+@prefix : <http://id.colourcountry.net/false/> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
+
+<renditions> a :Document
+;  :featuresOn <site>
+;  skos:prefLabel "Renditions"@en
+;  :updated "2018-10-15T23:08:00.000+01:00"^^xsd:dateTime
+;  :markdown
+"""
+A rendition is a representation of a document,
+for example as a media file.
+
+You are reading a rendition of this document
+sourced from inline markdown in the TTL.
+
+FALSE will look for additional renditions
+in files in the same directory that match the ID.
+
+This document's ID is `renditions` so FALSE will
+look for files beginning `renditions`:
+
+  * `renditions.md`
+  * `renditions.html`
+  * `renditions.mp4`
+  * `renditions.svg`
+
+and so on.
+
+Templates can access these using `{{ rendition }}`.
+
+FALSE will choose the rendition most suitable for presenting on a Web site
+and generate HTML code for it that can be included using `{{ html }}`.
+"""@en
+.

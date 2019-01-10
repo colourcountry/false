@@ -161,7 +161,7 @@ class TemplatableEntity:
         try:
             return getattr(self, a)
         except AttributeError:
-            raise RequiredAttributeError('missing required property %s' % a)
+            raise RequiredAttributeError('missing required property <%s>.%s' % (self,a))
 
     def __str__(self):
         return self.id
