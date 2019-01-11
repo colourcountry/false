@@ -11,7 +11,7 @@
 :Project a owl:Class
 ;  skos:prefLabel "project"@en
 ;  :collectiveLabel "projects"@en
-;  rdfs:subClassOf :CreativeWork
+;  rdfs:subClassOf :Work
 ;  skos:scopeNote "A creative activity with an overall focus or intent"@en
 .
 
@@ -48,7 +48,7 @@
 
 :credit a owl:DatatypeProperty
 ;   skos:prefLabel "credit"@en
-;   rdfs:domain :CreativeWork
+;   rdfs:domain :Work
 ;   rdfs:range xsd:string
 .
 
@@ -83,7 +83,7 @@
 :features a owl:ObjectProperty
 ;  skos:prefLabel "features"@en
 ;  rdfs:domain :Site
-;  rdfs:range :CreativeWork
+;  rdfs:range :Work
 ;  rdfs:subPropertyOf skos:narrower
 .
 
@@ -95,7 +95,7 @@
 
 :about a owl:ObjectProperty
 ;  skos:prefLabel "about"@en
-;  rdfs:domain :CreativeWork
+;  rdfs:domain :Work
 ;  rdfs:range skos:Concept
 ;  rdfs:subPropertyOf skos:related
 .

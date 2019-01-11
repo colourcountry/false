@@ -31,12 +31,12 @@ CONTEXTS = {
 
 # Local content can appear in these contexts
 CONTEXTS_FOR_RIGHTS = {
-            F.public: set((F.teaser, F.embed, F.page, F.download)),
-            F.restricted: set((F.teaser, F.embed, F.page))
+            F.public: {F.teaser, F.embed, F.page, F.download},
+            F.restricted: {F.teaser, F.embed, F.page}
 }
 
 # Remote content, or non-content, can only appear as a teaser
-LIMITED_CONTEXTS = set(F.teaser)
+LIMITED_CONTEXTS = {F.teaser}
 
 CONTENT_NEW = 0
 CONTENT_READY = 1
@@ -150,6 +150,7 @@ def build_graph(g, cfg):
     gg.bind('ipfs', cfg.ipfs_namespace)
 
     # first excise all private stuff, we don't want to know about it
+    logging.debug( list(g.triples((None, F.hasPublicationRights, F.private))) )
     for triple in g.triples((None, F.hasPublicationRights, F.private)):
         entity_id = triple[0]
         logging.info("%s: is private, dropping" % entity_id)

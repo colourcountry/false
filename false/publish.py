@@ -254,6 +254,7 @@ def publish_graph(g, cfg):
                 if e_types is not None:
                     # get the next layer of types
                     e_types = e_types.get('rdfs_subClassOf')
+                    logging.debug("%s@@%s: no template for direct type, trying %s" % (e, ctx, e_types))
 
             if dest is None:
                 logging.debug("%s@@%s: no template available" % (e, ctx))
