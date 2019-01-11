@@ -201,7 +201,8 @@ def publish_graph(g, cfg):
     jinja_e = jinja2.Environment(
         loader=jinja2.FileSystemLoader(cfg.template_dir),
         autoescape=True,
-        trim_blocks=True
+        trim_blocks=True,
+        lstrip_blocks=True
     )
 
     markdown_processor = markdown.Markdown(output_format="html5", extensions=[ImgRewriteExtension(tg=tg, base=cfg.id_base)])

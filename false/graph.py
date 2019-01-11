@@ -61,6 +61,23 @@ class TemplatableSet(set):
 
         return s
 
+    def count(self, a):
+        if isinstance(a, str):
+            a = rdflib.URIRef(a)
+        c=0
+        for i in self:
+            if i == a:
+                c+=1
+        return c
+
+    def is_only(self, a):
+        c = self.count(a)
+        if c==0:
+            return False
+        elif c==1:
+            return True
+        raise rdflib.UniquenessError
+
     def __getattr__(self, a):
         if a=="__html__":
             raise AttributeError # jinja2 tries this before escaping
