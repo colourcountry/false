@@ -26,14 +26,14 @@
     {% endif %}
 
     {% for item in depictedIn %}
-        <p><a rel="{{ this.rel(item) }}" href="{{ item.url }}">{{ item.asEmbed|safe }}</a></p>
+        <p>{{ item.link|safe }}</p>
     {% endfor %}
 
     {% if skos_closeMatch %}
         <h3>See also</h3>
         <ul>
             {% for item in skos_closeMatch %}
-                <li><a rel="{{ this.rel(item) }}" href="{{ item.url }}">{{ item.skos_prefLabel }}</a></li>
+                <li>{{ item.link|safe }}</li>
             {% endfor %}
         </ul>
     {% endif %}
@@ -46,7 +46,7 @@
                 <ul>
                     {% for item in skos_related %}
                         {% if item.skos_prefLabel and depictedIn not in this.rels(item) %}
-                            <li>{{ this.rel(item).skos_prefLabel }} <a href="{{ item.url }}" rel="{{ this.rel(item) }}">{{ item.skos_prefLabel }}</a></li>
+                            <li>{{ this.rel(item).skos_prefLabel }} {{ item.link|safe }}</li>
                         {% endif %}
                     {% endfor %}
                 </ul>
@@ -56,7 +56,7 @@
                 <ul>
                     {% for item in skos_narrower %}
                         {% if item.skos_prefLabel %}
-                            <li>{{ this.rel(item).skos_prefLabel }} <a href="{{ item.url }}" rel="{{ this.rel(item) }}">{{ item.skos_prefLabel }}</a></li>
+                            <li>{{ this.rel(item).skos_prefLabel }} {{ item.link|safe }}</li>
                         {% endif %}
                     {% endfor %}
                 </ul>
@@ -66,7 +66,7 @@
                 <ul>
                     {% for item in skos_broader %}
                         {% if item.skos_prefLabel %}
-                            <li>{{ this.rel(item).skos_prefLabel }} <a href="{{ item.url }}" rel="{{ this.rel(item) }}">{{ item.skos_prefLabel }}</a></li>
+                            <li>{{ this.rel(item).skos_prefLabel }} {{ item.link|safe }}</li>
                         {% endif %}
                     {% endfor %}
                 </ul>

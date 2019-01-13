@@ -4,6 +4,10 @@ import rdflib, re, os, logging, types
 
 from rdflib.namespace import RDF, OWL, SKOS
 
+# These entity properties will be interpreted as contexts
+# They won't collide, because these are context names, not property names (embedHTML etc. are the properties)
+CONTEXTS_AS_PROPS = { 'page', 'embed', 'teaser', 'link' }
+
 class RequiredAttributeError(AttributeError):
     pass
 
@@ -43,14 +47,6 @@ class TemplatableSet(set):
             raise RequiredAttributeError('no set items had required property %s' % a)
 
         return s
-
-    def embed(self):
-        # syntactic sugar for the benefit of templates
-        return TemplatableSet([x.embed() for x in self])
-
-    def teaser(self):
-        # syntactic sugar for the benefit of templates
-        return TemplatableSet([x.teaser() for x in self])
 
     def debug(self, e=None):
         if e is None:
@@ -150,14 +146,6 @@ class TemplatableEntity:
         logging.info(r)
         return r.replace('&','&amp;').replace('<','&lt;')
 
-    def teaser(self):
-        # syntactic sugar for the benefit of templates
-        return '<false-content alt="included from teaser()" context="http://id.colourcountry.net/false/teaser" src="%s"> ' % self.id
-
-    def embed(self):
-        # syntactic sugar for the benefit of templates
-        return '<false-content alt="included from embed()" context="http://id.colourcountry.net/false/embed" src="%s"> ' % self.id
-
     def walk(self, p):
         r = TemplatableSet()
         if p not in self.po:
@@ -206,6 +194,10 @@ class TemplatableEntity:
             self.op[o.safe].add(p)
 
     def get(self, a):
+        if a in CONTEXTS_AS_PROPS:
+            logging.debug('%s: constructing false-content %s' % (self.id, a))
+            return '<false-content alt="%s property" context="http://id.colourcountry.net/false/%s" src="%s"> ' % (a, a, self.id)
+
         try:
             return self.po[a]
         except KeyError:
@@ -213,11 +205,11 @@ class TemplatableEntity:
             return TemplatableSet()
 
     def __getattr__(self, a):
-        try:
-            return self.po[a]
-        except KeyError:
+        r = self.get(a)
+        if not r:
             logging.debug("%s: didn't have property %s" % (repr(self),a))
             raise AttributeError(a)
+        return r
 
     def require(self, a):
         try:
@@ -227,7 +219,7 @@ class TemplatableEntity:
 
     def __str__(self):
         if 'rdf_type' in self:
-            return str(self.require('asEmbed'))
+            return str(self.require('embedHTML'))
         else:
             return self.id # not a concept, just a URI
 

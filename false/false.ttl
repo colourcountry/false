@@ -119,6 +119,10 @@ skos:broader a owl:ObjectProperty
 #  No fallback - if there's not a specific teaser, display nothing
 .
 
+:link a :Context
+;  skos:prefLabel "link context"@en
+.
+
 :PublicationRights a owl:Class
 ;  skos:prefLabel "publication rights"@en
 ;  :collectiveLabel "publication rights"@en
@@ -187,21 +191,28 @@ skos:broader a owl:ObjectProperty
 ;  rdfs:range xsd:string
 .
 
-:asTeaser a owl:DatatypeProperty
-;  skos:prefLabel "HTML for teasers, sidebar links and search results"@en
-;  skos:related :embed
+:linkHTML a owl:DatatypeProperty
+;  skos:prefLabel "HTML for plain links"@en
+;  skos:related :link
 ;  rdfs:domain skos:Concept
 ;  rdfs:range xsd:string
 .
 
-:asEmbed a owl:DatatypeProperty
+:teaserHTML a owl:DatatypeProperty
+;  skos:prefLabel "HTML for teasers, sidebar links and search results"@en
+;  skos:related :teaser
+;  rdfs:domain skos:Concept
+;  rdfs:range xsd:string
+.
+
+:embedHTML a owl:DatatypeProperty
 ;  skos:prefLabel "HTML for embedding in documents"@en
 ;  skos:related :embed
 ;  rdfs:domain skos:Concept
 ;  rdfs:range xsd:string
 .
 
-:asPage a owl:DatatypeProperty
+:pageHTML a owl:DatatypeProperty
 ;  skos:prefLabel "HTML for standalone display"@en
 ;  skos:related :default
 ;  rdfs:domain skos:Concept

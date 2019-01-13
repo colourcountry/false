@@ -31,12 +31,12 @@ CONTEXTS = {
 
 # Local content can appear in these contexts
 CONTEXTS_FOR_RIGHTS = {
-            F.public: {F.teaser, F.embed, F.page, F.download},
-            F.restricted: {F.teaser, F.embed, F.page}
+            F.public: {F.link, F.teaser, F.embed, F.page, F.download},
+            F.restricted: {F.link, F.teaser, F.embed, F.page}
 }
 
-# Remote content, or non-content, can only appear as a teaser
-LIMITED_CONTEXTS = {F.teaser}
+# Remote content, or non-content, can only appear as a plain link or teaser
+LIMITED_CONTEXTS = {F.link, F.teaser}
 
 CONTENT_NEW = 0
 CONTENT_READY = 1

@@ -7,7 +7,7 @@
         <h2>a <a href="{{ this.type().url }}" rel="http://www.w3.org/1999/02/22-rdf-syntax-ns#type">{{ this.type().skos_prefLabel }}</a></h2>
         {% if description %}
         <p>
-            {{ description.asEmbed|safe }}
+            {{ description.embed|safe }}
         </p>
         {% endif %}
         <p>
@@ -17,11 +17,9 @@
 {% endblock -%}
 
 {%- block content %}
-        {% for html in asPage %}
-            <section>
-                {{ html|safe }}
-            </section>
-        {% endfor %}
+        <section>
+            {{ this.require('pageHTML')|safe }}
+        </section>
 {% endblock -%}
 
 {%- block downloads %}

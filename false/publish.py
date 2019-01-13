@@ -13,7 +13,7 @@ EXTERNAL_LINKS = {
 F = rdflib.Namespace("http://id.colourcountry.net/false/")
 
 # TODO: put this per-context configuration into the graph
-HTML_FOR_CONTEXT = { F.teaser: F.asTeaser, F.embed: F.asEmbed, F.page: F.asPage }
+HTML_FOR_CONTEXT = { F.link: F.linkHTML, F.teaser: F.teaserHTML, F.embed: F.embedHTML, F.page: F.pageHTML }
 
 # Teasers can link to anything, anywhere, so external stuff comes out as a teaser
 FALLBACK_CONTEXTS_FOR_EXTERNAL_RESOURCES = { F.embed: F.teaser, F.page: F.teaser }
