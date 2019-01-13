@@ -1,0 +1,26 @@
+@prefix : <http://id.colourcountry.net/false/> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
+
+<private> a :Document
+;  :featuresOn <site>
+;  skos:prefLabel "Private works"@en
+;  :hasPublicationRights :private
+;  :markdown
+"""
+This work is private. It won't be published or referenced anywhere on the public web site.
+If embedded in another content item, it will be silently dropped.
+"""@en
+.
+
+<restricted> a :Document
+;  :featuresOn <site>
+;  skos:prefLabel "Restricted works"@en
+;  :hasPublicationRights :restricted
+;  :markdown
+"""
+This work is restricted.
+A page gets built for it, and it can be embedded or used in teasers, in the form specified by those templates.
+However, the source is not available for download.
+"""@en
+.
