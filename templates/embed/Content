@@ -1,7 +1,5 @@
 <div class="asEmbed">
-    {% for html in this.require('asEmbed') %}
         <section>
-            {{ html|safe }}
+            {{ this|safe }}
         </section>
-    {% endfor %}
 </div>

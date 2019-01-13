@@ -17,18 +17,18 @@ do
     export TEASER=$(dirname $IMAGE)/.teaser.$(basename $IMAGE)
     if [[ ! -f "$TEASER" ]]
     then
-        convert -verbose -auto-orient -resize "$TEASER_SIZE"x"$TEASER_SIZE" "$IMAGE" "$TEASER"
+        convert -verbose -auto-orient -resize "$TEASER_SIZE"x"$TEASER_SIZE"\> "$IMAGE" "$TEASER"
     fi
 
     export EMBED=$(dirname $IMAGE)/.embed.$(basename $IMAGE)
     if [[ ! -f "$EMBED" ]]
     then
-        convert -verbose -auto-orient -resize "$EMBED_SIZE"x"$EMBED_SIZE" "$IMAGE" "$EMBED"
+        convert -verbose -auto-orient -resize "$EMBED_SIZE"x"$EMBED_SIZE"\> "$IMAGE" "$EMBED"
     fi
 
     export PAGE=$(dirname $IMAGE)/.page.$(basename $IMAGE)
     if [[ ! -f "$PAGE" ]]
     then
-        convert -verbose -auto-orient -resize "$PAGE_SIZE"x"$PAGE_SIZE" "$IMAGE" "$PAGE"
+        convert -verbose -auto-orient -resize "$PAGE_SIZE"x"$PAGE_SIZE"\> "$IMAGE" "$PAGE"
     fi
 done

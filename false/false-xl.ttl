@@ -118,3 +118,48 @@
 ;  owl:inverseOf :depicts
 ;  rdfs:subPropertyOf :hasAbout
 .
+
+:Agent a owl:Class
+;  skos:prefLabel "agent"@en
+;  :collectiveLabel "agents"@en
+;  rdfs:subClassOf skos:Concept
+.
+
+:Person a owl:Class
+;  skos:prefLabel "person"@en
+;  :collectiveLabel "people"@en
+;  rdfs:subClassOf :Agent
+.
+
+:Organisation a owl:Class
+;  skos:prefLabel "organisation"@en
+;  :collectiveLabel "organisations"@en
+;  rdfs:subClassOf :Agent
+.
+
+:contributorTo a owl:ObjectProperty
+;  skos:prefLabel "contributor to"@en
+;  rdfs:domain :Agent
+;  rdfs:range :Work
+;  rdfs:subPropertyOf skos:related
+.
+
+:hasContributor a owl:ObjectProperty
+;  skos:prefLabel "has contributor"@en
+;  owl:inverseOf :contributorTo
+;  rdfs:subPropertyOf skos:related
+.
+
+:creatorOf a owl:ObjectProperty
+;  skos:prefLabel "creator of"@en
+;  rdfs:domain :Agent
+;  rdfs:range :Work
+;  rdfs:subPropertyOf :contributorTo
+.
+
+:createdBy a owl:ObjectProperty
+;  skos:prefLabel "created by"@en
+;  owl:inverseOf :contributorTo
+;  rdfs:subPropertyOf :hasContributor
+.
+

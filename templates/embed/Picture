@@ -1,7 +1,7 @@
 <div class="asEmbed">
   <a href="{{ url }}">
     <figure>
-      {{ asEmbed|safe }}
+      {{ this|safe }}
       <figcaption>{{ caption }}</figcaption>
     </figure>
   </a>

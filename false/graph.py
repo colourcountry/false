@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-import rdflib, re, os, logging
+import rdflib, re, os, logging, types
 
 from rdflib.namespace import RDF, OWL, SKOS
 
@@ -39,10 +39,29 @@ class TemplatableSet(set):
         s = self.get(a)
 
         if not s:
+            logging.debug('%s: no set items had required property %s' % (repr(self),a))
             raise RequiredAttributeError('no set items had required property %s' % a)
 
         return s
 
+    def embed(self):
+        # syntactic sugar for the benefit of templates
+        return TemplatableSet([x.embed() for x in self])
+
+    def teaser(self):
+        # syntactic sugar for the benefit of templates
+        return TemplatableSet([x.teaser() for x in self])
+
+    def debug(self, e=None):
+        if e is None:
+            e = self
+        elif isinstance(e, str):
+            r = "((Debug str %s))" % e
+        elif not isinstance(e, TemplatableSet):
+            return e.debug()
+        r = "((Debug set %s))" % (repr(e))
+        logging.info(r)
+        return r.replace('&','&amp;').replace('<','&lt;')
 
     def get(self, a):
         '''Return a TemplatableSet for an attribute, empty or otherwise.'''
@@ -54,8 +73,10 @@ class TemplatableSet(set):
                 g = getattr(i, a)
                 if isinstance(g, set):
                     s.update(g)
+                elif isinstance(g, str):
+                    s.add(g)
                 else:
-                    raise ValueError('Attribute %s of set element %s was %s, not a set' % (a, repr(i), repr(g)))
+                    raise ValueError('Attribute %s of set element %s was %s, not a set or string' % (a, repr(i), repr(g)))
             else:
                 pass # this setelement didn't have the requested attribute :shrug:
 
@@ -67,6 +88,7 @@ class TemplatableSet(set):
 
         s = self.get(a)
         if not s:
+            logging.debug('%s: no set items had required property %s' % (repr(self),a))
             raise AttributeError(a)
         return s
 
@@ -76,8 +98,12 @@ class TemplatableEntity:
             # this is a bit nasty, but
             # in order to reference blank nodes in internally-generated src attributes,
             # we need them to live in a URI scheme
-            logging.debug("Protected blank node %s" % s)
             self.id = rdflib.URIRef("_:"+str(s))
+            logging.debug("Protected blank node %s" % self.id)
+        elif isinstance(s, rdflib.Literal):
+            self.id = rdflib.URIRef("__:"+hash(s))
+            self.asEmbed = s # force string value
+            logging.debug("Protected literal %s" % self.id)
         else:
             self.id = s
         self.safe = safe
@@ -95,8 +121,25 @@ class TemplatableEntity:
     def __contains__(self, predicate):
         return predicate in self.po
 
-    def debug(self):
-        return repr(self).replace('&','&amp;').replace('<','&lt;')
+    def debug(self, e=None):
+        if e is None:
+            e = self
+        elif isinstance(e, str):
+            r = "((Debug str %s))" % repr(e)
+        elif not isinstance(e, TemplatableEntity):
+            return e.debug()
+        pp = [("%s = %s" % (repr(k), repr(v))) for k,v in e.po.items()]
+        r = "((Debug entity %s\n%s))" % (repr(e), '\n'.join(pp))
+        logging.info(r)
+        return r.replace('&','&amp;').replace('<','&lt;')
+
+    def teaser(self):
+        # syntactic sugar for the benefit of templates
+        return '<false-content alt="included from teaser()" context="http://id.colourcountry.net/false/teaser" src="%s"> ' % self.id
+
+    def embed(self):
+        # syntactic sugar for the benefit of templates
+        return '<false-content alt="included from embed()" context="http://id.colourcountry.net/false/embed" src="%s"> ' % self.id
 
     def walk(self, p):
         r = TemplatableSet()
@@ -132,9 +175,9 @@ class TemplatableEntity:
 
     def add(self, p, o):
         if not (isinstance(o, TemplatableEntity) or isinstance(o, rdflib.Literal)):
-            raise ValueError("Object must be TemplatableEntity or Literal, not %s %s" % (o.__class__.__name__, o))
+            raise ValueError("Object must be TemplatableEntity or Literal, not %s %s" % (o.__class__.__name__, repr(o)))
         if not isinstance(p, TemplatablePredicate):
-            raise ValueError("Predicate must be TemplatablePredicate, not %s %s" % (p.__class__.__name__, p))
+            raise ValueError("Predicate must be TemplatablePredicate, not %s %s" % (p.__class__.__name__, repr(p)))
 
         if p.safe not in self.po:
             self.po[p.safe] = TemplatableSet()
@@ -149,32 +192,30 @@ class TemplatableEntity:
         try:
             return self.po[a]
         except KeyError:
+            logging.debug("%s: didn't have property %s" % (repr(self),a))
             return TemplatableSet()
 
     def __getattr__(self, a):
         try:
             return self.po[a]
         except KeyError:
+            logging.debug("%s: didn't have property %s" % (repr(self),a))
             raise AttributeError(a)
 
     def require(self, a):
         try:
             return getattr(self, a)
         except AttributeError:
-            raise RequiredAttributeError('missing required property <%s>.%s' % (self,a))
+            raise RequiredAttributeError('missing required property <%s>.%s' % (self.id,a))
 
     def __str__(self):
-        return self.id
+        if 'rdf_type' in self:
+            return str(self.require('asEmbed'))
+        else:
+            return self.id # not a concept, just a URI
 
     def __repr__(self):
-        r = "<Entity %s %s (%s) :=\n" % (self.id, id(self), self.safe)
-        for p in self.po:
-            if isinstance(self.po[p], set):
-                j = ','.join(str(x) for x in self.po[p])
-            else:
-                j = repr(self.po[p].id)
-            r += " + %s %s\n" % (p, j)
-        return r+">\n"
+        return "<Entity %s %s (%s)>" % (self.id, id(self), self.safe)
 
 class TemplatablePredicate(TemplatableEntity):
     def __init__(self, p, safe):
@@ -185,14 +226,7 @@ class TemplatablePredicate(TemplatableEntity):
         return self.id
 
     def __repr__(self):
-        r = "<Predicate %s %s (%s) :=\n" % (self.id, hash(self), self.safe)
-        for p in self.po:
-            if isinstance(self.po[p], set):
-                j = ','.join(str(x) for x in self.po[p])
-            else:
-                j = repr(self.po[p].id)
-            r += " + %s %s\n" % (p, j)
-        return r+">\n"
+        return "<Predicate %s %s (%s)>" % (self.id, hash(self), self.safe)
 
     def addso(self, s, o):
         if not (isinstance(o, TemplatableEntity) or isinstance(o, rdflib.Literal)):
