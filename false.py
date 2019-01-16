@@ -40,7 +40,6 @@ CONTEXTS = {
         }
 
 def path_to_id(path, url=''):
-    logging.info(f'{path} || {url}')
     if not path:
         return url
     p, s = os.path.split(path)
