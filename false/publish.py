@@ -52,7 +52,7 @@ class ImgRewriter(markdown.treeprocessors.Treeprocessor):
                     image.tag = 'false-content'
                 elif src.startswith(self.base):
                     # this is our ID but we do not have it because it is private, or because it didn't get defined
-                    logging.info("removing embed of unknown entity %s" % src)
+                    logging.info("removing embed of unknown or private entity %s" % src)
                     parent.remove(image)
                 else:
                     # probably an image on the internet
@@ -329,7 +329,7 @@ def publish_graph(g, cfg):
                 content = e.render(tpl)
             except (jinja2.exceptions.UndefinedError, RequiredAttributeError) as err:
                 # If an attribute is missing it may be a body for another entity/context that is not yet rendered
-                logging.info("%s@@%s not ready for %s: %s" % (e.id, ctx_id, tpl, err))
+                logging.debug("%s@@%s not ready for %s: %s" % (e.id, ctx_id, tpl, err))
                 next_write.add((e, ctx_id, err))
                 continue
 
@@ -339,7 +339,7 @@ def publish_graph(g, cfg):
                 content = re.sub("<false-content([^>]*)>\s*</false-content>", lambda m: resolve_content_reference(m, tg, cfg.id_base, stage, e, True), content)
                 content = re.sub("<false-content([^>]*)>", lambda m: resolve_content_reference(m, tg, cfg.id_base, stage, e, False), content)
             except PublishNotReadyError as err:
-                logging.info("%s@@%s deferred: %s" % (e.id, ctx_id, err))
+                logging.debug("%s@@%s deferred: %s" % (e.id, ctx_id, err))
                 next_write.add((e, ctx_id, err))
                 continue
 
