@@ -136,7 +136,7 @@ skos:broader a owl:ObjectProperty
 
 :restricted a :PublicationRights
 ;  skos:prefLabel "restricted"@en
-;  skos:scopeNote "This item is not available for download, but it can still be published in page, embed or teaser contexts. The website owner should ensure that the renditions available for these contexts are suitable for publication."
+;  skos:scopeNote "This item is published only as a referent. It has a page and may be linked to (including teasers) but not embedded or downloaded."
 .
 
 :public a :PublicationRights

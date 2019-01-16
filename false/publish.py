@@ -221,8 +221,13 @@ def publish_graph(g, cfg):
             continue
 
         if F.WebPage in allTypes:
-            # object is a Web page whose ID is its URL
-            tg.add(e.id, F.url, e.id)
+            if hasattr(e, 'url'):
+                if not e.isBlankNode():
+                    raise PublishError("Entities defining web pages must not have a :url property. Use the ID as the URL.")
+            else:
+                if e.isBlankNode():
+                    raise PublishError("Blank nodes defining web pages must have a :url property.")
+                tg.add(e.id, F.url, e.id)
 
         for ctx_id in HTML_FOR_CONTEXT:
             eff_ctx_safe = ctx_safe = tg.safePath(ctx_id)
@@ -234,6 +239,13 @@ def publish_graph(g, cfg):
             if 'url' in e and ctx_id in FALLBACK_CONTEXTS_FOR_EXTERNAL_RESOURCES:
                 logging.debug("%s@@%s: rendering external entity as if for %s" % (e.id, ctx_id, FALLBACK_CONTEXTS_FOR_EXTERNAL_RESOURCES[ctx_id]))
                 eff_ctx_safe = tg.safePath(FALLBACK_CONTEXTS_FOR_EXTERNAL_RESOURCES[ctx_id])
+
+            if e.isBlankNode() and ctx_id != F.embed:
+                # blank nodes don't have a canonical location,
+                # so can't be linked to and can't have a page,
+                # but they can be embedded
+                logging.debug("%s@@%s: not staging blank node" % (e.id, ctx_id))
+                continue
 
             # use the most direct type because we need to go up in a specific order
             # TODO: provide ordered walk functions on entities?

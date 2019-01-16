@@ -32,7 +32,8 @@ CONTEXTS = {
 # Local content can appear in these contexts
 CONTEXTS_FOR_RIGHTS = {
             F.public: {F.link, F.teaser, F.embed, F.page, F.download},
-            F.restricted: {F.link, F.teaser, F.embed, F.page}
+            # Restricted content may still get a page at publish time, but it must not contain the content
+            F.restricted: {F.link, F.teaser}
 }
 
 # Remote content, or non-content, can only appear as a plain link or teaser
@@ -140,20 +141,15 @@ def add_rendition(g, content_id, blob, ipfs_client, ipfs_namespace, mediaType, *
     return wrapped_id
 
 def build_graph(g, cfg):
-    gg = rdflib.Graph()
-    gg.bind('', F)
-    gg.bind('dc', DC)
-    gg.bind('skos', SKOS)
-    gg.bind('owl', OWL)
-    gg.bind('rdf', RDF)
-    gg.bind('rdfs', RDFS)
-    gg.bind('ipfs', cfg.ipfs_namespace)
+    g.bind('ipfs', cfg.ipfs_namespace)
 
     # first excise all private stuff, we don't want to know about it
+    private_ids = set()
     logging.debug( list(g.triples((None, F.hasPublicationRights, F.private))) )
     for triple in g.triples((None, F.hasPublicationRights, F.private)):
         entity_id = triple[0]
         logging.info("%s: is private, dropping" % entity_id)
+        private_ids.add(entity_id)
         g.remove((entity_id, None, None))
         g.remove((None, entity_id, None))
         g.remove((None, None, entity_id))
@@ -161,93 +157,95 @@ def build_graph(g, cfg):
     doc_types = [x[0] for x in g.query("""select ?t where { ?t rdfs:subClassOf+ :Content }""")]
 
     content = {}
-    entities = {}
+    valid_contexts = {}
+
     mdproc = markdown.Markdown(extensions=[ImgExtExtension(base=cfg.id_base)])
 
-    for s, p, o in g:
-        if s not in entities:
-            entities[s] = s
-        if p == RDF.type:
-            if o == F.Content or o in doc_types:
-                logging.debug("Found content %s (%s)" % (s, s.__class__.__name__))
-                entities[s] = s
-                content[s] = CONTENT_NEW
-
-    for s, p, o in g:
-        if o in entities:
-            o = entities[o]
-
-        if p == F.markdown:
-            if s not in content:
-                raise ValidationError("%s: entity has `markdown` property but is not any of the defined document types (%s %s)" % (s, F.Content, " ".join(doc_types)))
-            blob_id = add_rendition(gg, s, o.encode('utf-8'), cfg.ipfs_client, cfg.ipfs_namespace,
-                mediaType=rdflib.Literal('text/markdown'),
-                charset=rdflib.Literal('utf-8'),
-                intendedUse=F.page # embeds will fall back to this, but it can be distinguished from stuff to offer as a download
-            )
-            content[s] = CONTENT_READY
-
-            html = mdproc.convert(o)
-            for url in mdproc.images:
-                uriref = rdflib.URIRef(url)
-                if uriref in content:
-                    logging.debug("%s: found embed of %s" % (s, url))
-                    gg.add((s, F.incorporates, uriref))
-                elif uriref in entities:
-                    raise ValidationError("%s: tried to embed non-document %s" % (s, url))
-                else:
-                    logging.debug("%s: found embed of Web document %s" % (s, url))
-
-            for url in mdproc.links:
-                uriref = rdflib.URIRef(url)
-                if uriref in content:
-                    logging.debug("%s: found link to %s" % (s, url))
-                    gg.add((s, F.links, uriref))
-                elif uriref in entities:
-                    logging.info("%s: found mention of %s" % (s, url))
-                    gg.add((s, F.mentions, uriref))
-                else:
-                    logging.debug("%s: found link to Web document %s" % (s, url))
-
+    type_spo = g.triples((None, RDF.type, None))
+    for s, p, o in type_spo:
+        if o == F.Content or o in doc_types:
+            logging.debug("Found content %s (%s)" % (s, s.__class__.__name__))
+            content[s] = CONTENT_NEW
         else:
-            gg.add((s, p, o))
-
-    for content_id in entities:
-        # TODO: do this more nicely
-        if content_id not in content:
-            if content_id.startswith(cfg.id_base):
+            if s.startswith(cfg.id_base):
                 # local non-content can be teased
-                valid_contexts = LIMITED_CONTEXTS
-            else:
-                # external non-content is not part of our world so we will not attempt to render it
-                # To tease it, bring it into our world with an ID and skos:exactMatch it to the external entity
-                continue
-        elif content_id.startswith(cfg.id_base):
-            rights = set(g.triples((content_id, F.hasPublicationRights, None)))
-            if len(rights)>1:
-                raise rdflib.UniquenessError("%s: has multiple publication rights" % content_id)
-            elif not rights:
-                rights = F.public
-                logging.debug("%s: no publication rights specified, defaulting to public" % content_id)
-                gg.add((content_id, F.hasPublicationRights, F.public))
-            else:
-                rights = rights.pop()[2]
-            valid_contexts = CONTEXTS_FOR_RIGHTS[rights]
-            gg.add((content_id, F.published, rdflib.Literal(datetime.datetime.now().isoformat(), datatype=XSD.dateTime)))
-        else:
+                valid_contexts[s] = LIMITED_CONTEXTS
+
+    rights_spo = g.triples((None, F.hasPublicationRights, None))
+    for s, p, o in rights_spo:
+        if s in valid_contexts:
+            raise ValueError("%s: non-content or multiple publication rights" % s)
+        valid_contexts[s] = CONTEXTS_FOR_RIGHTS[o]
+
+    for content_id in content:
+        if not isinstance(content_id, rdflib.BNode) and not content_id.startswith(cfg.id_base):
             # external content is noted, but we will not render it, see above
             content[content_id] = CONTENT_EXTERNAL
             continue
 
+        g.add((content_id, F.published, rdflib.Literal(datetime.datetime.now().isoformat(), datatype=XSD.dateTime)))
+
+        # find rights info
+        if content_id in valid_contexts:
+            vc = valid_contexts[content_id]
+        else:
+            logging.debug("%s: no publication rights specified, defaulting to public" % content_id)
+            vc = CONTEXTS_FOR_RIGHTS[F.public]
+            g.add((content_id, F.hasPublicationRights, F.public))
+
+        # look for markdown
+        md = g.triples((content_id, F.markdown, None))
+        for spo in md:
+            o = spo[2]
+
+            if F.page not in vc:
+                logging.debug("%s: discarding markdown because page is not a valid context" % content_id)
+            else:
+                logging.debug("%s: adding rendition for markdown property:\n   %s..." % (content_id, o[:100].strip()))
+                blob_id = add_rendition(g, content_id, o.encode('utf-8'), cfg.ipfs_client, cfg.ipfs_namespace,
+                    mediaType=rdflib.Literal('text/markdown'),
+                    charset=rdflib.Literal('utf-8'),
+                    intendedUse=F.page # embeds will fall back to this, but it can be distinguished from stuff to offer as a download
+                )
+                content[s] = CONTENT_READY
+
+                html = mdproc.convert(o)
+                for url in mdproc.images:
+                    uriref = rdflib.URIRef(url)
+                    if uriref in content:
+                        logging.debug("%s: found embed of %s" % (s, url))
+                        g.add((s, F.incorporates, uriref))
+                    elif uriref in private_ids:
+                        logging.debug("%s: found embed of private entity %s, doing nothing" % (s, url))
+                    elif uriref.startswith(cfg.id_base):
+                        raise ValidationError("%s: tried to embed non-document %s" % (s, url))
+                    else:
+                        logging.debug("%s: found embed of Web document %s" % (s, url))
+
+                for url in mdproc.links:
+                    uriref = rdflib.URIRef(url)
+                    if uriref in content:
+                        logging.debug("%s: found link to %s" % (s, url))
+                        g.add((s, F.links, uriref))
+                    elif uriref in private_ids:
+                        logging.info("%s: found mention of private entity %s, doing nothing" % (s, url))
+                    elif uriref.startswith(cfg.id_base):
+                        logging.info("%s: found mention of %s" % (s, url))
+                        g.add((s, F.mentions, uriref))
+                    else:
+                        logging.debug("%s: found link to Web document %s" % (s, url))
+
+
+
         for pfx, ctx in CONTEXTS.items():
-            if ctx not in valid_contexts:
+            if ctx not in vc:
                 continue
             for mime, ext in FILE_TYPES.items():
                 fn = url_to_path(content_id[len(cfg.id_base):], pfx=pfx, sfx=ext)
                 try:
                     blob = open(os.path.join(cfg.src_dir,fn),'rb').read()
                     # TODO: refactor these additions to the graph and save out the full RDF
-                    blob_id = add_rendition(gg, content_id, blob, cfg.ipfs_client, cfg.ipfs_namespace,
+                    blob_id = add_rendition(g, content_id, blob, cfg.ipfs_client, cfg.ipfs_namespace,
                         mediaType=rdflib.Literal(mime),
                         charset=rdflib.Literal("utf-8"),
                         intendedUse=ctx
@@ -274,9 +272,7 @@ def build_graph(g, cfg):
                     # verbose logging.debug("%s: nothing at %s" % (content_id, fn))
                     continue
 
-    for content_id in content:
-        if content[content_id] not in (CONTENT_READY, CONTENT_EXTERNAL):
-            raise ValueError("%s: no renditions available, cannot publish" % content_id)
+    # markdown properties have all been converted or discarded
+    g.remove((None, F.markdown, None))
 
-
-    return gg
+    return g

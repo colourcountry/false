@@ -123,6 +123,9 @@ class TemplatableEntity:
         self.po = {'this': self}
         self.op = {}
 
+    def isBlankNode(self):
+        return self.id.startswith('_:')
+
     def __hash__(self):
         return hash(self.id)
 
