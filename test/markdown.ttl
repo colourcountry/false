@@ -77,3 +77,5 @@ In future FALSE may allow you to define your own contexts and refer to them in t
 
 # But personally I prefer to keep the Markdown with the rest of the entity and define it in the Turtle file.
 
+# TODO: I currently need to tell FALSE that this HTTP URL is content, or it will reject it as non-embeddable.
+<http://placekitten.com/150/150> a :Picture .

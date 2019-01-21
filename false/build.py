@@ -147,9 +147,8 @@ def build_graph(g, cfg, files):
             logging.debug("Found content %s (%s)" % (s, s.__class__.__name__))
             content[s] = CONTENT_NEW
         else:
-            if s.startswith(cfg.id_base):
-                # local non-content can be teased
-                valid_contexts[s] = LIMITED_CONTEXTS
+            # non-content can be teased
+            valid_contexts[s] = LIMITED_CONTEXTS
 
     rights_spo = g.triples((None, F.hasPublicationRights, None))
     for s, p, o in rights_spo:
@@ -160,11 +159,6 @@ def build_graph(g, cfg, files):
     renditions_to_add = []
 
     for content_id in content:
-        if not isinstance(content_id, rdflib.BNode) and not content_id.startswith(cfg.id_base):
-            # external content is noted, but we will not render it, see above
-            content[content_id] = CONTENT_EXTERNAL
-            continue
-
         g.add((content_id, F.published, rdflib.Literal(datetime.datetime.now().isoformat(), datatype=XSD.dateTime)))
 
         # find rights info
@@ -195,29 +189,21 @@ def build_graph(g, cfg, files):
                 html = mdproc.convert(o)
                 for url in mdproc.images:
                     uriref = rdflib.URIRef(url)
-                    if uriref in content:
+                    if uriref in private_ids:
+                        logging.debug("%s: found embed of private entity %s, doing nothing" % (s, url))
+                    elif uriref in content:
                         logging.debug("%s: found embed of %s" % (s, url))
                         g.add((s, F.incorporates, uriref))
-                    elif uriref in private_ids:
-                        logging.debug("%s: found embed of private entity %s, doing nothing" % (s, url))
-                    elif uriref.startswith(cfg.id_base):
-                        raise ValidationError("%s: tried to embed non-document %s" % (s, url))
                     else:
-                        logging.debug("%s: found embed of Web document %s" % (s, url))
+                        raise ValidationError("%s: tried to embed non-document %s" % (s, url))
 
                 for url in mdproc.links:
                     uriref = rdflib.URIRef(url)
-                    if uriref in content:
-                        logging.debug("%s: found link to %s" % (s, url))
-                        g.add((s, F.links, uriref))
-                    elif uriref in private_ids:
+                    if uriref in private_ids:
                         logging.info("%s: found mention of private entity %s, doing nothing" % (s, url))
-                    elif uriref.startswith(cfg.id_base):
+                    else:
                         logging.info("%s: found mention of %s" % (s, url))
                         g.add((s, F.mentions, uriref))
-                    else:
-                        logging.debug("%s: found link to Web document %s" % (s, url))
-
 
 
     for ctx, id_to_file in files.items():
