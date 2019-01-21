@@ -176,7 +176,7 @@ def build_graph(g, cfg, files):
         # look for markdown
         md = g.triples((content_id, F.markdown, None))
         for spo in md:
-            o = spo[2]
+            s, p, o = spo
 
             if F.page not in valid_contexts[content_id]:
                 logging.debug("%s: discarding markdown because page is not a valid context" % content_id)
