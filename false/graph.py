@@ -126,6 +126,9 @@ class TemplatableEntity:
     def isBlankNode(self):
         return self.id.startswith('_:')
 
+    def myid(self):
+        return self.id
+
     def __hash__(self):
         return hash(self.id)
 
@@ -146,7 +149,6 @@ class TemplatableEntity:
             return e.debug()
         pp = [("%s = %s" % (repr(k), repr(v))) for k,v in e.po.items()]
         r = "((Debug entity %s\n%s))" % (repr(e), '\n'.join(pp))
-        logging.info(r)
         return r.replace('&','&amp;').replace('<','&lt;')
 
     def walk(self, p):
@@ -225,7 +227,7 @@ class TemplatableEntity:
 
     def __str__(self):
         if 'rdf_type' in self:
-            return '<false-content alt="self" context="http://id.colourcountry.net/false/embed" src="%s"> ' % ( self.id)
+            return '<false-content alt="self" context="http://id.colourcountry.net/false/embed" src="%s"> ' % (self.id)
             #return str(self.require('embedHTML'))
         else:
             return self.id # not a concept, just a URI

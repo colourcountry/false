@@ -133,8 +133,8 @@
 ;  rdfs:subPropertyOf skos:related
 .
 
-:hasAbout a owl:ObjectProperty
-;  skos:prefLabel ""@en # not a good word for this!
+:subjectOf a owl:ObjectProperty
+;  skos:prefLabel "subject of"@en
 ;  rdfs:subPropertyOf skos:related
 ;  owl:inverseOf :about
 .
@@ -149,7 +149,7 @@
 :depictedIn a owl:ObjectProperty
 ;  skos:prefLabel "depicted in"@en
 ;  owl:inverseOf :depicts
-;  rdfs:subPropertyOf :hasAbout
+;  rdfs:subPropertyOf :subjectOf
 .
 
 :Agent a owl:Class

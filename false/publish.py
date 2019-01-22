@@ -128,7 +128,9 @@ def resolve_content_reference(m, tg, base, stage, e, upgrade_to_teaser=False):
         ctx = F.teaser
 
     if (tg.entities[src_safe], ctx) not in stage:
-        raise PublishError("can't resolve %s@@%s: not staged" % (src, ctx))
+        r = "can't resolve %s@@%s: not staged" % (src, ctx)
+        logging.warning(r)
+        return "<!-- %s -->" % r
 
     # the stage has (template, path) for each context so [1] references the path
     fn = stage[(tg.entities[src_safe],ctx)][1]
@@ -219,7 +221,7 @@ def publish_graph(g, cfg):
     for e_safe, e in tg.entities.items():
         allTypes = e.get('rdf_type')
         if not allTypes:
-            logging.debug("%s: unknown type" % e.id)
+            logging.debug("%s: unknown type? %s" % (e.id, e.debug()))
             continue
 
         if F.WebPage in allTypes:
@@ -229,7 +231,7 @@ def publish_graph(g, cfg):
             else:
                 if e.isBlankNode():
                     raise PublishError("Blank nodes defining web pages must have a :url property.")
-                tg.add(e.id, F.url, e.id)
+                tg.add(e.id, F.url, rdflib.Literal(e.id))
 
         for ctx_id in HTML_FOR_CONTEXT:
             eff_ctx_safe = ctx_safe = tg.safePath(ctx_id)

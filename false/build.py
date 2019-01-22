@@ -6,10 +6,6 @@ import logging, os, re, io, datetime, markdown, urllib.parse, json, posixpath
 
 F = rdflib.Namespace("http://id.colourcountry.net/false/")
 
-CONTENT_NEW = 0
-CONTENT_READY = 1
-CONTENT_EXTERNAL = 2
-
 class ValidationError(ValueError):
     pass
 
@@ -126,17 +122,26 @@ class Builder:
             elif uriref in self.content:
                 logging.debug("%s: found embed of %s" % (content_id, url))
                 self.g.add((content_id, F.incorporates, uriref))
-            else:
+            elif uriref in self.entities:
                 # an "embed" of a non-content is just a long-winded mention
                 self.g.add((content_id, F.mentions, uriref))
+            else:
+                pass # legacy image
 
         for url in self.mdproc.links:
             uriref = rdflib.URIRef(url)
             if uriref in self.private_ids:
-                logging.info("%s: found mention of private entity %s, doing nothing" % (content_id, url))
-            else:
+                logging.info("%s: found link to private entity %s, doing nothing" % (content_id, url))
+            elif uriref in self.content:
                 logging.info("%s: found mention of %s" % (content_id, url))
                 self.g.add((content_id, F.mentions, uriref))
+            elif uriref in self.entities:
+                logging.info("%s: found mention of %s" % (content_id, url))
+                self.g.add((content_id, F.mentions, uriref))
+            else:
+                logging.info("%s: found link to %s" % (content_id, url))
+                self.g.add((content_id, F.links, uriref))
+                self.g.add((uriref, RDF.type, F.WebPage))
 
     def build(self):
         self.g.bind('ipfs', self.cfg.ipfs_namespace)
@@ -153,8 +158,8 @@ class Builder:
             self.g.remove((None, entity_id, None))
             self.g.remove((None, None, entity_id))
 
-
-        self.content = {}
+        self.entities = set()
+        self.content = set()
         self.valid_contexts = {}
 
         self.mdproc = markdown.Markdown(extensions=[ImgExtExtension(base=self.cfg.id_base), 'tables'])
@@ -163,9 +168,10 @@ class Builder:
 
         type_spo = self.g.triples((None, RDF.type, None))
         for s, p, o in type_spo:
+            self.entities.add(s)
             if o == F.Content or o in doc_types:
                 logging.debug("Found content %s (%s)" % (s, s.__class__.__name__))
-                self.content[s] = CONTENT_NEW
+                self.content.add(s)
 
         rights_spo = self.g.triples((None, F.hasPublicationRights, None))
         for s, p, o in rights_spo:
@@ -201,8 +207,6 @@ class Builder:
                         'intendedUse': F.page # embeds will fall back to this, but it can be distinguished from stuff to offer as a download
                     })
 
-                    self.content[s] = CONTENT_READY
-
                     self.add_markdown_refs(s, o)
 
 
@@ -236,11 +240,6 @@ class Builder:
                         })
 
                     logging.info("%s@@%s: using %s" % (content_id, ctx, fn))
-
-                    if content_id in self.content:
-                        # we've got something, even if it may be intended for a different context
-                        # TODO: figure out if this is a bad idea
-                        self.content[content_id] = CONTENT_READY
 
                     if mime == 'text/markdown':
                         if not blob:
