@@ -163,6 +163,9 @@ class TemplatableEntity:
     def render(self, template):
         return template.render(self.po)
 
+    def is_type(self, t):
+        return t in [x.safe for x in self.get('rdf_type')]
+
     def type(self):
         directTypes = self.get('rdf_type')
         parentTypes = TemplatableSet()
@@ -222,7 +225,8 @@ class TemplatableEntity:
 
     def __str__(self):
         if 'rdf_type' in self:
-            return str(self.require('embedHTML'))
+            return '<false-content alt="self" context="http://id.colourcountry.net/false/embed" src="%s"> ' % ( self.id)
+            #return str(self.require('embedHTML'))
         else:
             return self.id # not a concept, just a URI
 

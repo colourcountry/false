@@ -15,6 +15,39 @@
 ;  skos:scopeNote "A creative activity with an overall focus or intent"@en
 .
 
+:Goal a owl:Class
+;  skos:prefLabel "project goal"@en
+;  :collectiveLabel "project goals"@en
+;  rdfs:subClassOf skos:Concept
+;  skos:scopeNote "An objective for a project against which it could be assessed"@en
+.
+
+:NonGoal a owl:Class
+;  skos:prefLabel "project non-goal"@en
+;  :collectiveLabel "project non-goals"@en
+;  rdfs:subClassOf :Goal
+;  skos:scopeNote "An objective for a project which is expressed in terms of not doing (too much of) something"@en
+.
+
+:goal a owl:ObjectProperty
+;  skos:prefLabel "has goal"@en
+;  rdfs:domain :Project
+;  rdfs:range :Goal
+;  rdfs:subPropertyOf skos:related
+.
+
+:goalOf a owl:ObjectProperty
+;  skos:prefLabel "goal of"@en
+;  rdfs:subPropertyOf skos:related
+;  owl:inverseOf :goal
+.
+
+:started a owl:DatatypeProperty
+;  skos:prefLabel "started"@en
+;  rdfs:domain :Project
+;  rdfs:range xsd:dateTime
+.
+
 :Site a owl:Class
 ;  skos:prefLabel "Web site"@en
 ;  :collectiveLabel "Web sites"@en
@@ -162,4 +195,3 @@
 ;  owl:inverseOf :contributorTo
 ;  rdfs:subPropertyOf :hasContributor
 .
-

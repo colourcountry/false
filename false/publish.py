@@ -18,9 +18,6 @@ HTML_FOR_CONTEXT = { F.link: F.linkHTML, F.teaser: F.teaserHTML, F.embed: F.embe
 # Teasers can link to anything, anywhere, so external stuff comes out as a teaser
 FALLBACK_CONTEXTS_FOR_EXTERNAL_RESOURCES = { F.embed: F.teaser, F.page: F.teaser }
 
-# Only content can be embedded, so embedded non-content comes out as a teaser
-FALLBACK_CONTEXTS_FOR_NON_CONTENT = { F.embed: F.teaser }
-
 PUB_FAIL_MSG = """
 ---------------------------------------------------------------------------------
 PUBLISH FAILED
@@ -66,7 +63,10 @@ class ImgRewriter(markdown.treeprocessors.Treeprocessor):
                     link.set('src', href)
                     link.set('context', F.link)
                     link.tag = 'false-content'
-                    #FIXME the above prevents link text from ever being overridden
+                    #FIXME think of a way to retain the link text
+                    for c in link:
+                        link.remove(c)
+                    link.text = ''
                     #e = self.tg.entities[href_safe]
                     #if 'url' in e:
                     #    link.set('href', e.url)
@@ -110,7 +110,7 @@ def get_page_path(e_safe, ctx_safe, e_type, output_dir, file_type='html'):
 def get_page_url(e_safe, ctx_safe, e_type, url_base, file_type='html'):
     return '%s/%s/%s/%s' % (url_base, e_type.safe, ctx_safe, e_safe+'.'+file_type)
 
-def resolve_content_reference(m, tg, base, stage, e, in_p=False):
+def resolve_content_reference(m, tg, base, stage, e, upgrade_to_teaser=False):
     logging.debug("Resolving content reference %s" % (m.group(1)))
 
     attrs = {}
@@ -123,6 +123,9 @@ def resolve_content_reference(m, tg, base, stage, e, in_p=False):
         src = urllib.parse.urljoin(base, attrs["src"])
     src_safe = tg.safePath(src)
     ctx = rdflib.URIRef(attrs["context"])
+
+    if upgrade_to_teaser and ctx==F.link:
+        ctx = F.teaser
 
     if (tg.entities[src_safe], ctx) not in stage:
         raise PublishError("can't resolve %s@@%s: not staged" % (src, ctx))
@@ -206,7 +209,7 @@ def publish_graph(g, cfg):
         lstrip_blocks=True
     )
 
-    markdown_processor = markdown.Markdown(output_format="html5", extensions=[ImgRewriteExtension(tg=tg, base=cfg.id_base)])
+    markdown_processor = markdown.Markdown(output_format="html5", extensions=[ImgRewriteExtension(tg=tg, base=cfg.id_base), 'tables'])
 
     embed_html = {}
     entities_to_write = set()
@@ -230,10 +233,6 @@ def publish_graph(g, cfg):
 
         for ctx_id in HTML_FOR_CONTEXT:
             eff_ctx_safe = ctx_safe = tg.safePath(ctx_id)
-
-            if F.Content not in allTypes and ctx_id in FALLBACK_CONTEXTS_FOR_NON_CONTENT:
-                logging.debug("%s@@%s: rendering non-content as if for %s" % (e.id, ctx_id, FALLBACK_CONTEXTS_FOR_NON_CONTENT[ctx_id]))
-                eff_ctx_safe = tg.safePath(FALLBACK_CONTEXTS_FOR_NON_CONTENT[ctx_id])
 
             if 'url' in e and ctx_id in FALLBACK_CONTEXTS_FOR_EXTERNAL_RESOURCES:
                 logging.debug("%s@@%s: rendering external entity as if for %s" % (e.id, ctx_id, FALLBACK_CONTEXTS_FOR_EXTERNAL_RESOURCES[ctx_id]))
@@ -333,9 +332,13 @@ def publish_graph(g, cfg):
                 continue
 
             try:
-                content = re.sub("<p>\s*<false-content([^>]*)>\s*</false-content>\s*</p>", lambda m: resolve_content_reference(m, tg, cfg.id_base, stage, e, True), content)
-                content = re.sub("<p>\s*<false-content([^>]*)>\s*</p>", lambda m: resolve_content_reference(m, tg, cfg.id_base, stage, e, True), content)
-                content = re.sub("<false-content([^>]*)>\s*</false-content>", lambda m: resolve_content_reference(m, tg, cfg.id_base, stage, e, True), content)
+                content = re.sub("<p>\s*<em>\s*<false-content([^>]*)>\s*</false-content>\s*</em>\s*</p>", lambda m: resolve_content_reference(m, tg, cfg.id_base, stage, e, True), content)
+                content = re.sub("<p>\s*<em>\s*<false-content([^>]*)>\s*</em>\s*</p>", lambda m: resolve_content_reference(m, tg, cfg.id_base, stage, e, True), content)
+                content = re.sub("<p>\s*<false-content([^>]*)>\s*</false-content>\s*</p>", lambda m: resolve_content_reference(m, tg, cfg.id_base, stage, e, False), content)
+                content = re.sub("<p>\s*<false-content([^>]*)>\s*</p>", lambda m: resolve_content_reference(m, tg, cfg.id_base, stage, e, False), content)
+                content = re.sub("<em>\s*<false-content([^>]*)>\s*</false-content>\s*</em>", lambda m: resolve_content_reference(m, tg, cfg.id_base, stage, e, True), content)
+                content = re.sub("<em>\s*<false-content([^>]*)>\s*</em>", lambda m: resolve_content_reference(m, tg, cfg.id_base, stage, e, True), content)
+                content = re.sub("<false-content([^>]*)>\s*</false-content>", lambda m: resolve_content_reference(m, tg, cfg.id_base, stage, e, False), content)
                 content = re.sub("<false-content([^>]*)>", lambda m: resolve_content_reference(m, tg, cfg.id_base, stage, e, False), content)
             except PublishNotReadyError as err:
                 logging.debug("%s@@%s deferred: %s" % (e.id, ctx_id, err))

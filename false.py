@@ -95,7 +95,7 @@ if __name__=="__main__":
 
     logging.info("** Building **")
 
-    final_graph = false.build.build_graph(g, cfg, files_by_ctx)
+    final_graph = false.build.Builder(g, cfg, files_by_ctx, FILE_TYPES).build()
 
     logging.info("** Publishing **")
 
