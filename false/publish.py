@@ -15,9 +15,6 @@ F = rdflib.Namespace("http://id.colourcountry.net/false/")
 # TODO: put this per-context configuration into the graph
 HTML_FOR_CONTEXT = { F.link: F.linkHTML, F.teaser: F.teaserHTML, F.embed: F.embedHTML, F.page: F.pageHTML }
 
-# Teasers can link to anything, anywhere, so external stuff comes out as a teaser
-FALLBACK_CONTEXTS_FOR_EXTERNAL_RESOURCES = { F.embed: F.teaser, F.page: F.teaser }
-
 PUB_FAIL_MSG = """
 ---------------------------------------------------------------------------------
 PUBLISH FAILED
@@ -192,7 +189,7 @@ def find_renditions_for_context(rr, ctx):
 def get_html_body(tg, e, ctx, ipfs_client, markdown_processor, ipfs_dir):
     rr = e.get('rendition')
     available = find_renditions_for_context(rr, ctx)
-    logging.debug("%s@@%s: %s of %s renditions available" % (e.id, ctx.id, len(available), len(rr)))
+    logging.debug("%s@@%s: %s of %s renditions are suitable" % (e.id, ctx.id, len(available), len(rr)))
 
     for r in available:
         eh = get_html_body_for_rendition(tg, e, r, ipfs_client, markdown_processor, ipfs_dir)
@@ -234,11 +231,7 @@ def publish_graph(g, cfg):
                 tg.add(e.id, F.url, rdflib.Literal(e.id))
 
         for ctx_id in HTML_FOR_CONTEXT:
-            eff_ctx_safe = ctx_safe = tg.safePath(ctx_id)
-
-            if 'url' in e and ctx_id in FALLBACK_CONTEXTS_FOR_EXTERNAL_RESOURCES:
-                logging.debug("%s@@%s: rendering external entity as if for %s" % (e.id, ctx_id, FALLBACK_CONTEXTS_FOR_EXTERNAL_RESOURCES[ctx_id]))
-                eff_ctx_safe = tg.safePath(FALLBACK_CONTEXTS_FOR_EXTERNAL_RESOURCES[ctx_id])
+            ctx_safe = tg.safePath(ctx_id)
 
             if e.isBlankNode() and ctx_id != F.embed:
                 # blank nodes don't have a canonical location,
@@ -255,7 +248,7 @@ def publish_graph(g, cfg):
 
             while e_types:
                 for e_type in e_types:
-                    t_path = os.path.join(eff_ctx_safe, e_type.safe)
+                    t_path = os.path.join(ctx_safe, e_type.safe)
                     try:
                         tpl = jinja_e.get_template(t_path)
                     except jinja2.exceptions.TemplateNotFound as err:

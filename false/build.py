@@ -58,24 +58,27 @@ class Builder:
         self.file_types = file_types
 
         # Content can appear in these contexts.
-        self.contexts_for_rights = {
+        self.contexts_for_ava = {
                     F.public: {F.link, F.teaser, F.embed, F.page, F.download},
-                    # Restricted content may still get a page at publish time, but it must not contain the content
+                    F.embeddable: {F.link, F.teaser, F.embed},
                     F.restricted: {F.link, F.teaser}
         }
 
 
-    def add_rendition(self, mediaType, blob=None, blob_hash=None, content_id=None, **properties):
+    def add_rendition(self, mediaType, blob=None, blob_hash=None, entity_id=None, **properties):
+        if not entity_id:
+            raise ValueError
+
         if not self.cfg.ipfs_client:
-            logging.warning("No IPFS, can't add rendition info to document %s" % content_id)
+            logging.warning("No IPFS, can't add rendition info to document %s" % entity_id)
             return None
 
         if blob_hash:
-            logging.debug("%s: using provided IPFS hash %s" % (content_id, blob_hash))
+            logging.debug("%s: using provided IPFS hash %s" % (entity_id, blob_hash))
         else:
             blob_hash = self.cfg.ipfs_client.add_bytes(blob)
 
-        doc_basename = posixpath.basename(content_id)
+        doc_basename = posixpath.basename(entity_id)
         if doc_basename:
             blob_filename = doc_basename+self.file_types[str(mediaType)]
         else:
@@ -85,10 +88,10 @@ class Builder:
 
         info = rdflib.Graph()
         info.bind('', F)
-        for p, o in self.g[content_id]:
+        for p, o in self.g[entity_id]:
             if p != F.rendition: # we might know about other renditions already, but it's pot luck, so best to keep just this one
-                info.add((content_id, p, o))
-        info.add((content_id, F.rendition, rdflib.URIRef(blob_filename))) # relative path to the file, as we don't know the hash
+                info.add((entity_id, p, o))
+        info.add((entity_id, F.rendition, rdflib.URIRef(blob_filename))) # relative path to the file, as we don't know the hash
         info_blob = info.serialize(format='ttl')
 
         ipld = {"Links": [{"Name": blob_filename, "Hash": blob_hash}], # FIXME "Size": len(blob)}],
@@ -107,10 +110,10 @@ class Builder:
         self.g.add((wrapped_id, F.blobURL, wrapped_id))
 
         for k, v in properties.items():
-            logging.debug("%s: adding property %s=%s" % (content_id, k, v))
+            logging.debug("%s: adding property %s=%s" % (entity_id, k, v))
             self.g.add((wrapped_id, F[k], v))
-        logging.debug("%s: adding rendition %s" % (content_id, wrapped_id))
-        self.g.add((content_id, F.rendition, wrapped_id))
+        logging.debug("%s: adding rendition %s" % (entity_id, wrapped_id))
+        self.g.add((entity_id, F.rendition, wrapped_id))
         return wrapped_id
 
     def add_markdown_refs(self, content_id, blob):
@@ -149,8 +152,8 @@ class Builder:
         # first excise all private stuff, we don't want to know about it
         self.private_ids = set()
 
-        logging.debug( list(self.g.triples((None, F.hasPublicationRights, F.private))) )
-        for triple in self.g.triples((None, F.hasPublicationRights, F.private)):
+        logging.debug( list(self.g.triples((None, F.hasAvailability, F.private))) )
+        for triple in self.g.triples((None, F.hasAvailability, F.private)):
             entity_id = triple[0]
             logging.info("%s: is private, dropping" % entity_id)
             self.private_ids.add(entity_id)
@@ -173,22 +176,21 @@ class Builder:
                 logging.debug("Found content %s (%s)" % (s, s.__class__.__name__))
                 self.content.add(s)
 
-        rights_spo = self.g.triples((None, F.hasPublicationRights, None))
+        rights_spo = self.g.triples((None, F.hasAvailability, None))
         for s, p, o in rights_spo:
             if s in self.valid_contexts:
-                raise ValueError("%s: non-content or multiple publication rights" % s)
-            self.valid_contexts[s] = self.contexts_for_rights[o]
+                raise ValueError("%s: multiple availability values" % s)
+            self.valid_contexts[s] = self.contexts_for_ava[o]
 
+        for entity_id in self.entities:
+            if entity_id not in self.valid_contexts:
+                logging.debug("%s: no availability specified, defaulting to public" % entity_id)
+                self.valid_contexts[entity_id] = self.contexts_for_ava[F.public]
+                self.g.add((entity_id, F.hasAvailability, F.public))
         renditions_to_add = []
 
         for content_id in self.content:
             self.g.add((content_id, F.published, rdflib.Literal(datetime.datetime.now().isoformat(), datatype=XSD.dateTime)))
-
-            # find rights info
-            if content_id not in self.valid_contexts:
-                logging.debug("%s: no publication rights specified, defaulting to public" % content_id)
-                self.valid_contexts[content_id] = self.contexts_for_rights[F.public]
-                self.g.add((content_id, F.hasPublicationRights, F.public))
 
             # look for markdown
             md = self.g.triples((content_id, F.markdown, None))
@@ -200,7 +202,7 @@ class Builder:
                 else:
                     logging.debug("%s: adding rendition for markdown property:\n   %s..." % (content_id, o[:100].strip()))
                     renditions_to_add.append({
-                        'content_id': content_id,
+                        'entity_id': content_id,
                         'blob': o.encode('utf-8'),
                         'mediaType': rdflib.Literal('text/markdown'),
                         'charset': rdflib.Literal('utf-8'),
@@ -211,8 +213,8 @@ class Builder:
 
 
         for ctx, id_to_file in self.files.items():
-            for content_id, fn in id_to_file.items():
-                if content_id not in self.valid_contexts or ctx not in self.valid_contexts[content_id]:
+            for entity_id, fn in id_to_file.items():
+                if entity_id not in self.valid_contexts or ctx not in self.valid_contexts[entity_id]:
                     continue
                 for mime, ext in self.file_types.items():
                     if not fn.endswith(ext):
@@ -222,8 +224,9 @@ class Builder:
                     if m:
                         blob = None
                         blob_hash = m.group(1)
+                        logging.debug("%s: adding rendition for file %s with provided ipfs hash %s" % (entity_id, fn, blob_hash))
                         renditions_to_add.append({
-                            'content_id': content_id,
+                            'entity_id': entity_id,
                             'blob_hash': blob_hash,
                             'mediaType': rdflib.Literal(mime),
                             'charset': rdflib.Literal("utf-8"),
@@ -231,8 +234,9 @@ class Builder:
                         })
                     else:
                         blob = open(fn,'rb').read()
+                        logging.debug("%s: adding rendition for file %s" % (entity_id, fn))
                         renditions_to_add.append({
-                            'content_id': content_id,
+                            'entity_id': entity_id,
                             'blob': blob,
                             'mediaType': rdflib.Literal(mime),
                             'charset': rdflib.Literal("utf-8"),

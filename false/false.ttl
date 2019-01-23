@@ -123,23 +123,28 @@ skos:broader a owl:ObjectProperty
 ;  skos:prefLabel "link context"@en
 .
 
-:PublicationRights a owl:Class
+:Availability a owl:Class
 ;  skos:prefLabel "publication rights"@en
 ;  :collectiveLabel "publication rights"@en
 ;  rdfs:subClassOf skos:Concept
 .
 
-:private a :PublicationRights
+:private a :Availability
 ;  skos:prefLabel "private"@en
 ;  skos:scopeNote "This item is private. It must not be published or referred to by anything that is published."
 .
 
-:restricted a :PublicationRights
+:restricted a :Availability
 ;  skos:prefLabel "restricted"@en
-;  skos:scopeNote "This item is published only as a referent. It has a page and may be linked to (including teasers) but not embedded or downloaded."
+;  skos:scopeNote "This item is published only as a referent. It can have a page, but that page must not reproduce it in full. It may be linked to (including teasers) but not embedded or downloaded."
 .
 
-:public a :PublicationRights
+:embeddable a :Availability
+;  skos:prefLabel "embeddable"@en
+;  skos:scopeNote "This item is published only so that it (or its representation) can be incorporated into other items. It can have a page, but that page may only reproduce it in the form in which it is embedded. It may be linked to (including teasers) but not downloaded."
+.
+
+:public a :Availability
 ;  skos:prefLabel "public"@en
 ;  skos:scopeNote "All renditions of this item may be published."
 .
@@ -168,9 +173,9 @@ skos:broader a owl:ObjectProperty
 ;  rdfs:range :Context
 .
 
-:hasPublicationRights a owl:ObjectProperty
-;  skos:prefLabel "has publication rights"@en
-;  rdfs:domain skos:Concept # non-content can still have pages published for it, so can still have rights
+:hasAvailability a owl:ObjectProperty
+;  skos:prefLabel "has availability"@en
+;  rdfs:domain skos:Concept
 ;  rdfs:range :Context
 .
 
