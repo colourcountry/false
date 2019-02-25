@@ -17,10 +17,14 @@ class Config:
         self.home_site = home_site
         self.id_base = id_base
 
-    def setIPFS(self, ipfs_client, ipfs_namespace, ipfs_dir):
+    def setIPFS(self, ipfs_client, ipfs_namespace, ipfs_dir, ipfs_cache_dir=None):
         self.ipfs_client = ipfs_client
         self.ipfs_namespace = ipfs_namespace
         self.ipfs_dir = os.path.join(self.output_dir, ipfs_dir)
+        if ipfs_cache_dir is None: 
+            self.ipfs_cache_dir = None
+        else:
+            self.ipfs_cache_dir = os.path.abspath(ipfs_cache_dir)
 
     def validate(self):
         pass # TODO

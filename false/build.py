@@ -76,35 +76,90 @@ class Builder:
         if blob_hash:
             logging.debug("%s: using provided IPFS hash %s" % (entity_id, blob_hash))
         else:
+            logging.debug("%s: adding to IPFS" % entity_id)
             blob_hash = self.cfg.ipfs_client.add_bytes(blob)
 
-        doc_basename = posixpath.basename(entity_id)
-        if doc_basename:
-            blob_filename = doc_basename+self.file_types[str(mediaType)]
-        else:
-            blob_filename = "blob"+self.file_types[str(mediaType)]
 
-        # TODO: spot blank nodes and remove the filename (since it's not guaranteed to be stable)
+        blob_filename = "content"+self.file_types[str(mediaType)]
+        info_blob = None
+        if not isinstance(entity_id, rdflib.BNode):
+            doc_basename = posixpath.basename(entity_id)
+            if doc_basename:
+                blob_filename = doc_basename+self.file_types[str(mediaType)]
+            info = rdflib.Graph()
+            info.bind('', F)
+            for p, o in self.g[entity_id]:
+                if p != F.rendition: # we might know about other renditions already, but it's pot luck, so best to keep just this one
+                    info.add((entity_id, p, o))
+            info.add((entity_id, F.rendition, rdflib.URIRef(blob_filename))) # relative path to the file, as we don't know the hash
+            info_blob = info.serialize(format='ttl')
 
-        info = rdflib.Graph()
-        info.bind('', F)
-        for p, o in self.g[entity_id]:
-            if p != F.rendition: # we might know about other renditions already, but it's pot luck, so best to keep just this one
-                info.add((entity_id, p, o))
-        info.add((entity_id, F.rendition, rdflib.URIRef(blob_filename))) # relative path to the file, as we don't know the hash
-        info_blob = info.serialize(format='ttl')
 
-        ipld = {"Links": [{"Name": blob_filename, "Hash": blob_hash}], # FIXME "Size": len(blob)}],
-                "Data": "\u0008\u0001"} # this data seems to be required for something to be a directory
+        ipld_blob = None
 
         if info_blob:
-            info_hash = self.cfg.ipfs_client.add_bytes(info_blob)
-            ipld["Links"].append({"Name": "info.ttl", "Hash": info_hash, "Size": len(info_blob)})
+            if self.cfg.ipfs_cache_dir:
+                try:
+                    with open(os.path.join(self.cfg.ipfs_cache_dir, blob_hash, 'info.ttl'), 'rb') as info_cache:
+                        info_cached = info_cache.read()
+                        if info_cached == info_blob:
+                            logging.debug("%s: found existing info for %s" % (entity_id, blob_hash))
+                            ipld_blob = open(os.path.join(self.cfg.ipfs_cache_dir, blob_hash, '.ipld.json'), 'rb').read()
+                        else:
+                            logging.debug("%s: cached info didn't match, refreshing %s" % (entity_id, blob_hash))
+                            logging.debug("%s: %s %s" % (entity_id, info_cached, info_blob))
+                except FileNotFoundError as e:
+                    logging.debug("%s: no cached info: %s" % (entity_id, e))
+                    pass
 
-        ipld_blob = json.dumps(ipld).encode('utf-8')
-        wrapper_resp = self.cfg.ipfs_client.object_put(io.BytesIO(ipld_blob))
+        if not ipld_blob:
+            ipld = {"Links": [{"Name": blob_filename, "Hash": blob_hash}], # FIXME "Size": len(blob)}],
+                "Data": "\u0008\u0001"} # this data seems to be required for something to be a directory
 
-        wrapped_id = self.cfg.ipfs_namespace["%s/%s" % (wrapper_resp["Hash"], blob_filename)]
+            if info_blob:
+                info_hash = self.cfg.ipfs_client.add_bytes(info_blob)
+                ipld["Links"].append({"Name": "info.ttl", "Hash": info_hash, "Size": len(info_blob)})
+
+            ipld_blob = json.dumps(ipld).encode('utf-8')
+
+        wrapped_id = None
+
+        if self.cfg.ipfs_cache_dir:
+            try:
+                with open(os.path.join(self.cfg.ipfs_cache_dir, blob_hash, '.ipld.json'), 'rb') as ipld_cache:
+                    ipld_cached = ipld_cache.read()
+                    if ipld_cached == ipld_blob:
+                        wrapped_id = rdflib.URIRef(open(os.path.join(self.cfg.ipfs_cache_dir, blob_hash, '.wrapped_id'), 'r').read())
+                        logging.debug("%s: found existing wrapped_id for %s" % (entity_id, blob_hash))
+                    else:
+                        logging.debug("%s: cached IPLD didn't match, refreshing %s" % (entity_id, blob_hash))
+                        logging.debug("%s: %s %s" % (entity_id, ipld_cached, ipld_blob))
+            except FileNotFoundError as e:
+                logging.debug("%s: no cached wrapped_id: %s" % (entity_id, e))
+                pass
+
+        if not wrapped_id:
+            wrapper_resp = self.cfg.ipfs_client.object_put(io.BytesIO(ipld_blob))
+            wrapped_id = self.cfg.ipfs_namespace["%s/%s" % (wrapper_resp["Hash"], blob_filename)]
+            if self.cfg.ipfs_cache_dir:
+                os.makedirs(os.path.join(self.cfg.ipfs_cache_dir, blob_hash), exist_ok=True)
+                open(os.path.join(self.cfg.ipfs_cache_dir, blob_hash, '.ipld.json'), 'wb').write(ipld_blob)
+                open(os.path.join(self.cfg.ipfs_cache_dir, blob_hash, '.wrapped_id'), 'w').write(wrapped_id)
+                if info_blob:
+                    open(os.path.join(self.cfg.ipfs_cache_dir, blob_hash, 'info.ttl'), 'wb').write(info_blob)
+                if blob:
+                    open(os.path.join(self.cfg.ipfs_cache_dir, blob_hash, blob_filename), 'wb').write(blob)
+                    logging.debug("%s: added cache data for %s (with blob)" % (entity_id, blob_hash))
+                else:
+                    logging.debug("%s: added cache data for %s (no blob)" % (entity_id, blob_hash))
+
+        if blob and self.cfg.ipfs_cache_dir:
+            os.makedirs(os.path.join(self.cfg.ipfs_cache_dir, wrapped_id[6:]), exist_ok=True)
+            try:
+                open(os.path.join(self.cfg.ipfs_cache_dir, wrapped_id[6:], 'blob'), 'rb')
+            except FileNotFoundError:
+                open(os.path.join(self.cfg.ipfs_cache_dir, wrapped_id[6:], 'blob'), 'wb').write(blob)
+
         self.g.add((wrapped_id, RDF.type, F.Media))
         self.g.add((wrapped_id, F.mediaType, mediaType))
         self.g.add((wrapped_id, F.blobURL, wrapped_id))
@@ -190,7 +245,8 @@ class Builder:
         renditions_to_add = []
 
         for content_id in self.content:
-            self.g.add((content_id, F.published, rdflib.Literal(datetime.datetime.now().isoformat(), datatype=XSD.dateTime)))
+            #FIXME: This triple makes the IPFS hash of every content different every time. Think of a better way
+            #self.g.add((content_id, F.published, rdflib.Literal(datetime.datetime.now().isoformat(), datatype=XSD.dateTime)))
 
             # look for markdown
             md = self.g.triples((content_id, F.markdown, None))

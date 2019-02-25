@@ -62,13 +62,13 @@ if __name__=="__main__":
 
     try:
         ipfs_client = ipfsapi.connect('127.0.0.1',5001)
-        cfg.setIPFS(ipfs_client, ipfs_namespace, "ipfs")
+        cfg.setIPFS(ipfs_client, ipfs_namespace, "ipfs", os.environ.get("FALSE_IPFS_CACHE", None))
     except ipfsapi.exceptions.ConnectionError:
         logging.info("No IPFS daemon running. Trying to go ahead with mockipfs")
 
         import false.mockipfs
         ipfs_client = false.mockipfs.MockIPFS("ipfs")
-        cfg.setIPFS(ipfs_client, ipfs_namespace, "ipfs")
+        cfg.setIPFS(ipfs_client, ipfs_namespace, "ipfs", os.environ.get("FALSE_IPFS_CACHE", None))
 
     cfg.validate()
 

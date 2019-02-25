@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 import rdflib
-import sys, logging, os, re, urllib.parse
+import sys, logging, os, re, urllib.parse, shutil
 import jinja2, markdown
 import pprint
 from false.graph import *
@@ -88,17 +88,27 @@ class ImgRewriteExtension(markdown.extensions.Extension):
         img_rw = ImgRewriter(md, self.getConfig('tg'), self.getConfig('base'))
         md.treeprocessors.add('imgrewrite', img_rw, '>inline')
 
-def save_ipfs(ipfs_client, r, ipfs_dir):
+def save_ipfs(ipfs_client, r, ipfs_dir, ipfs_cache_dir=None):
     if not r.id.startswith("/ipfs/"):
         raise IOError("%s: not a NURI, can't save" % r.id)
     logging.debug("%s: saving to %s" % (r.id, ipfs_dir))
     cwd = os.getcwd()
     subdir = os.path.dirname(r.id[6:]) # use local OS path as we just want to create dirs necessary for the path to work on this system
+    basename = os.path.basename(r.id)
     if subdir:
         ipfs_dir = os.path.join(ipfs_dir, subdir)
     os.makedirs(ipfs_dir, exist_ok=True)
     os.chdir(ipfs_dir)
-    ipfs_client.get(r.id)
+    if ipfs_cache_dir:
+        try:
+            cache_location = os.path.join(ipfs_cache_dir, subdir, basename, 'blob')
+            shutil.copyfile(cache_location, basename)
+            logging.info("%s: copied cached file from %s" % (r.id, cache_location))
+        except FileNotFoundError as e:
+            logging.debug("%s: no cached file: %s" % (r.id, e))
+            ipfs_client.get(r.id)
+    else:
+        ipfs_client.get(r.id)
     os.chdir(cwd)
 
 def get_page_path(e_safe, ctx_safe, e_type, output_dir, file_type='html'):
@@ -137,7 +147,7 @@ def resolve_content_reference(m, tg, base, stage, e, upgrade_to_teaser=False):
     except FileNotFoundError:
         raise PublishNotReadyError("requires %s@@%s" % (src, ctx))
 
-def get_html_body_for_rendition(tg, e, r, ipfs_client, markdown_processor, ipfs_dir):
+def get_html_body_for_rendition(tg, e, r, ipfs_client, markdown_processor, ipfs_dir, ipfs_cache_dir=None):
     def get_charset(r, e, mt):
         for c in r.charset:
             return c
@@ -151,7 +161,19 @@ def get_html_body_for_rendition(tg, e, r, ipfs_client, markdown_processor, ipfs_
 
     if rdflib.Literal('text/markdown') in mt:
         # markdown is a partial page so safe to embed
-        return markdown_processor.convert(ipfs_client.cat(r.id).decode(get_charset(r, e, mt)))
+        if ipfs_cache_dir:
+            try:
+                cache_location = os.path.join(ipfs_cache_dir, r.id[6:], 'blob')
+                with open(cache_location,'rb') as cached_content:
+                    logging.debug("%s: reading from cache at %s" % (r.id, cache_location))
+                    content = cached_content.read()
+            except FileNotFoundError as err:
+                logging.debug("%s: no cached content: %s" % (r.id, err))
+                content = ipfs_client.cat(r.id)
+        else:
+            content = ipfs_client.cat(r.id)
+
+        return markdown_processor.convert(content.decode(get_charset(r, e, mt)))
 
     blobURL = r.blobURL.pick().id
 
@@ -186,13 +208,13 @@ def find_renditions_for_context(rr, ctx):
     return []
 
 
-def get_html_body(tg, e, ctx, ipfs_client, markdown_processor, ipfs_dir):
+def get_html_body(tg, e, ctx, ipfs_client, markdown_processor, ipfs_dir, ipfs_cache_dir=None):
     rr = e.get('rendition')
     available = find_renditions_for_context(rr, ctx)
     logging.debug("%s@@%s: %s of %s renditions are suitable" % (e.id, ctx.id, len(available), len(rr)))
 
     for r in available:
-        eh = get_html_body_for_rendition(tg, e, r, ipfs_client, markdown_processor, ipfs_dir)
+        eh = get_html_body_for_rendition(tg, e, r, ipfs_client, markdown_processor, ipfs_dir, ipfs_cache_dir)
         if eh:
             return eh
 
@@ -289,7 +311,7 @@ def publish_graph(g, cfg):
     # first put all the renditions up, in case referenced by a template
     for e in entities_to_write:
         for r in e.get('rendition'):
-            save_ipfs(cfg.ipfs_client, r, cfg.ipfs_dir)
+            save_ipfs(cfg.ipfs_client, r, cfg.ipfs_dir, cfg.ipfs_cache_dir)
 
     iteration = 0
     to_write = set(stage.keys())
@@ -312,7 +334,7 @@ def publish_graph(g, cfg):
                 continue
 
             ctx_safe = tg.safePath(ctx_id)
-            body = get_html_body(tg, e, tg.entities[ctx_safe], cfg.ipfs_client, markdown_processor, cfg.ipfs_dir)
+            body = get_html_body(tg, e, tg.entities[ctx_safe], cfg.ipfs_client, markdown_processor, cfg.ipfs_dir, cfg.ipfs_cache_dir)
 
             # Add the inner (markdown-derived) html to the graph for templates to pick up
             logging.debug("Adding this inner html to %s@@%s:\n%s..." % (e.id, ctx_id, body[:100]))
