@@ -23,10 +23,16 @@ class MockIPFS:
         time.sleep(DELAY)
         i = ipld_blob.read()
         logging.debug(i)
-        cp = subprocess.run(['ipfs', 'object', 'put', '-q', '-'], input=i, stdout=subprocess.PIPE)
+        if "FALSE_OLD_IPFS" in os.environ:
+            cp = subprocess.run(['ipfs', 'object', 'put', '-'], input=i, stdout=subprocess.PIPE)
+        else:
+            cp = subprocess.run(['ipfs', 'object', 'put', '-q', '-'], input=i, stdout=subprocess.PIPE)
         if cp.returncode != 0:
             raise OSError("Error running ipfs object put: %s" % cp.stderr)
-        return {"Hash": cp.stdout.decode('us-ascii').strip()}
+        hash = cp.stdout.decode('us-ascii').strip()
+        if hash.startswith("added "):
+            hash = hash[6:]
+        return {"Hash": hash}
 
     def cat(self, nuri):
         logging.info("MOCKIPFS: cat %s" % nuri)

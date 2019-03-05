@@ -12,15 +12,24 @@ class Config:
                id_base):
         self.src_dir = src_dir
         self.url_base = url_base
-        self.output_dir = os.path.abspath(output_dir)
-        self.template_dir = os.path.abspath(template_dir)
+        if output_dir is None:
+            self.output_dir = None
+        else:
+            self.output_dir = os.path.abspath(output_dir)
+        if template_dir is None:
+            self.template_dir = None
+        else:
+            self.template_dir = os.path.abspath(template_dir)
         self.home_site = home_site
         self.id_base = id_base
 
     def setIPFS(self, ipfs_client, ipfs_namespace, ipfs_dir, ipfs_cache_dir=None):
         self.ipfs_client = ipfs_client
         self.ipfs_namespace = ipfs_namespace
-        self.ipfs_dir = os.path.join(self.output_dir, ipfs_dir)
+        if self.output_dir is None:
+            self.ipfs_dir = None
+        else:
+            self.ipfs_dir = os.path.join(self.output_dir, ipfs_dir)
         if ipfs_cache_dir is None: 
             self.ipfs_cache_dir = None
         else:
