@@ -33,6 +33,25 @@ class TemplatableSet(set):
     def difference(self, other):
         return TemplatableSet(set.difference(self, other))
 
+    def as_str(self):
+        return str(self)
+
+    def as_number(self):
+        '''Coerce self into a float, averaging if necessary.'''
+        return sum([float(i) for i in self]) / len(self)
+
+    def sort(self, property):
+        '''Return an iterator over the objects in self in alphabetical order of property.'''
+        s = {}
+        for i in self:
+            k = str(i.get(property))
+            if k not in s:
+                s[k] = []
+            s[k].append(i)
+        for k in sorted(s.keys()):
+            for i in s[k]:
+                yield i
+
     def pick(self):
         '''Return one of the items in the set, don't care which.'''
         for i in self:
