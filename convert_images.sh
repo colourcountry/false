@@ -6,6 +6,7 @@ export PAGE_SIZE=1200
 
 if [[ $2 == "-wipe" ]]
 then
+    echo "Removing all cached conversions"
     find "$1" -name '.teaser.*'\
               -or -name '.embed.*'\
               -or -name '.page.*'\
@@ -21,7 +22,11 @@ do
     export ORIG_FILE=$(basename "$FILE" | sed -e 's/[.]download[.]ipfs-[^.]*[.]//')
     if [[ -f "$ORIG_FILE" ]]
     then
-        diff -q $(basename "$FILE") "$ORIG_FILE" || rm -fv .*."$ORIG_FILE"
+        if [[ $2 != "-nochecks" ]]
+        then
+            echo "$ORIG_FILE: checking for changes"
+            diff -q $(basename "$FILE") "$ORIG_FILE" || rm -fv .*."$ORIG_FILE"
+        fi
     else
         echo "$ORIG_FILE has been removed."
         rm -fv .*."$ORIG_FILE"
@@ -38,7 +43,10 @@ do
     pushd $(dirname $IMAGE) > /dev/null
     export B=$(basename $IMAGE)
 
-    cp "$B" .download.ipfs-$(ipfs add -Q "$B")."$B"
+    if find -type f -name '.download.*.'"$B" -exec false {} +
+    then
+        cp "$B" .download.ipfs-$(ipfs add -Q "$B")."$B"
+    fi
     if find -type f -name '.teaser.*.'"$B" -exec false {} +
     then
         convert -verbose -auto-orient -resize "$TEASER_SIZE"x"$TEASER_SIZE"\> "$B" .teaser.tmp

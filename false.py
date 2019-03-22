@@ -52,11 +52,11 @@ def path_to_id(path, url=''):
 if __name__=="__main__":
 
     cfg = false.config.Config( src_dir=os.environ["FALSE_SRC"],
-                          url_base=os.environ["FALSE_URL_BASE"],
-                          output_dir=os.environ["FALSE_OUT"],
-                          template_dir=os.environ["FALSE_TEMPLATES"],
-                          home_site=os.environ["FALSE_HOME_SITE"],
-                          id_base=os.environ["FALSE_ID_BASE"])
+                          url_base=os.environ.get("FALSE_URL_BASE", None),
+                          output_dir=os.environ.get("FALSE_OUT", None),
+                          template_dir=os.environ.get("FALSE_TEMPLATES", None),
+                          home_site=os.environ.get("FALSE_HOME_SITE", None),
+                          id_base=os.environ.get("FALSE_ID_BASE", None))
 
     ipfs_namespace = rdflib.Namespace("/ipfs/")
 
@@ -96,6 +96,9 @@ if __name__=="__main__":
     logging.info("** Building **")
 
     final_graph = false.build.Builder(g, cfg, files_by_ctx, FILE_TYPES).build()
+
+    if not cfg.output_dir:
+        raise SystemExit("No output dir specified, not publishing.")
 
     logging.info("** Publishing **")
 
