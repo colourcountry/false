@@ -40,15 +40,39 @@ class TemplatableSet(set):
         '''Coerce self into a float, averaging if necessary.'''
         return sum([float(i) for i in self]) / len(self)
 
-    def sort(self, property):
-        '''Return an iterator over the objects in self in alphabetical order of property.'''
+    def sort(self, reverse, *properties):
+        '''Return an iterator over the objects in self in alphabetical order of properties in turn.'''
+
+        class After:
+            '''If a property in the list is not present, we want to sort that item after items with the property.'''
+            def __lt__(self, other): return False
+            def __gt__(self, other): return True
+            def __str__(self): return ''
+        class Before:
+            '''If a property in the list is not present, we want to sort that item after items with the property, even if reversed.'''
+            def __lt__(self, other): return True
+            def __gt__(self, other): return False
+            def __str__(self): return ''
+  
+        if reverse:
+            AFTER = Before()
+        else:
+            AFTER = After()
+
         s = {}
         for i in self:
-            k = str(i.get(property))
+            k = []
+            for p in properties:
+                pv = i.get(p)
+                if pv:
+                    k.append(str(pv))
+                else:
+                    k.append(AFTER)
+            k = tuple(k)
             if k not in s:
                 s[k] = []
             s[k].append(i)
-        for k in sorted(s.keys()):
+        for k in sorted(s.keys(), reverse=reverse):
             for i in s[k]:
                 yield i
 
@@ -193,6 +217,9 @@ class TemplatableEntity:
         for t in directTypes:
             parentTypes.update(t.walk('rdfs_subClassOf'))
         return directTypes.difference(parentTypes)
+
+    def type_id(self):
+        return self.type().pick().id
 
     def rels(self, o):
         return TemplatableSet(p for p in self.op.get(o.safe, []))
