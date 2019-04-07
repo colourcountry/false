@@ -64,16 +64,6 @@ class ImgRewriter(markdown.treeprocessors.Treeprocessor):
                     for c in link:
                         link.remove(c)
                     link.text = ''
-                    #e = self.tg.entities[href_safe]
-                    #if 'url' in e:
-                    #    link.set('href', e.url)
-                    #    if not link.text:
-                    #        link.text = str(e.skos_prefLabel)
-                    #    if F.Content not in e.rdf_type: # FIXME: duplicates logic from build
-                    #        link.set('rel', str(F.mentions))
-                    #else:
-                    #    link.set('value', href)
-                    #    link.attrib.pop('href')
                 else:
                     logging.info("removing link to unknown or private entity %s" % href)
                     parent.remove(link)
@@ -129,9 +119,12 @@ def resolve_content_reference(m, tg, base, stage, e, upgrade_to_teaser=False):
     else:
         src = urllib.parse.urljoin(base, attrs["src"])
     src_safe = tg.safePath(src)
-    ctx = rdflib.URIRef(attrs["context"])
 
-    if upgrade_to_teaser and ctx==F.link:
+    if "context" in attrs:
+        ctx = rdflib.URIRef(attrs["context"])
+        if upgrade_to_teaser and ctx==F.link:
+            ctx = F.teaser
+    else:
         ctx = F.teaser
 
     if (tg.entities[src_safe], ctx) not in stage:
