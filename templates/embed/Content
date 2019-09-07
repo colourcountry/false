@@ -1,5 +1,5 @@
-<div class="asEmbed">
+<div class="asEmbed" data-src-id="{{this.id}}">
         <section>
-            {{ this|safe }}
+            {{ this.require('embedHTML')|safe }}
         </section>
 </div>

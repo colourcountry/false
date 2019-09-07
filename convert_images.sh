@@ -1,6 +1,7 @@
 #!/bin/bash
 
-export TEASER_SIZE=400
+export TEASER_WIDTH=400
+export TEASER_HEIGHT=225
 export EMBED_SIZE=800
 export PAGE_SIZE=1200
 
@@ -49,7 +50,7 @@ do
     fi
     if find -type f -name '.teaser.*.'"$B" -exec false {} +
     then
-        convert -verbose -auto-orient -resize "$TEASER_SIZE"x"$TEASER_SIZE"\> "$B" .teaser.tmp
+        convert -verbose -auto-orient -resize "$TEASER_WIDTH"x"$TEASER_HEIGHT"^ -gravity center -crop "$TEASER_WIDTH"x"$TEASER_HEIGHT"+0+0 "$B" .teaser.tmp
         mv .teaser.tmp .teaser.ipfs-$(ipfs add -Q .teaser.tmp)."$B"
     fi
 

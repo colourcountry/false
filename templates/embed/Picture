@@ -1,7 +1,7 @@
-<div class="asEmbed">
+<div class="asEmbed" data-src-id="{{ this.id }}">
   <a href="{{ url }}">
     <figure>
-      {{ this|safe }}
+      {{ this.require('embedHTML')|safe }}
       <figcaption>{{ caption }}</figcaption>
     </figure>
   </a>

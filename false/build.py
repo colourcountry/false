@@ -139,7 +139,7 @@ class Builder:
                 pass
 
         if not wrapped_id:
-            wrapper_resp = self.cfg.ipfs_client.object_put(io.BytesIO(ipld_blob))
+            wrapper_resp = self.cfg.ipfs_client.object.put(io.BytesIO(ipld_blob))
             wrapped_id = self.cfg.ipfs_namespace["%s/%s" % (wrapper_resp["Hash"], blob_filename)]
             if self.cfg.ipfs_cache_dir:
                 os.makedirs(os.path.join(self.cfg.ipfs_cache_dir, blob_hash), exist_ok=True)

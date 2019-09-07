@@ -4,7 +4,7 @@ import false.publish, false.build, false.config
 import rdflib
 from rdflib.namespace import RDF, DC, SKOS, OWL
 import sys, logging, os, re, urllib.parse, datetime
-import ipfsapi
+import ipfshttpclient
 import jinja2, markdown
 import pprint
 
@@ -61,9 +61,9 @@ if __name__=="__main__":
     ipfs_namespace = rdflib.Namespace("/ipfs/")
 
     try:
-        ipfs_client = ipfsapi.connect('127.0.0.1',5001)
+        ipfs_client = ipfshttpclient.connect('/ip4/127.0.0.1/tcp/5001')
         cfg.setIPFS(ipfs_client, ipfs_namespace, "ipfs", os.environ.get("FALSE_IPFS_CACHE", None))
-    except ipfsapi.exceptions.ConnectionError:
+    except ipfshttpclient.exceptions.ConnectionError:
         logging.info("No IPFS daemon running. Trying to go ahead with mockipfs")
 
         import false.mockipfs

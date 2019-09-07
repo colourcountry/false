@@ -140,7 +140,9 @@ class TemplatableSet(set):
 
     def __getattr__(self, a):
         if a=="__html__":
-            raise AttributeError # jinja2 tries this before escaping
+            # jinja2's "safe" filter tries to get HTML-safe content from here
+            # we have to fail so that it will just escape as necessary
+            raise AttributeError
 
         s = self.get(a)
         if not s:
@@ -259,6 +261,11 @@ class TemplatableEntity:
             return TemplatableSet()
 
     def __getattr__(self, a):
+        if a=="__html__":
+            # jinja2's "safe" filter tries to get HTML-safe content from here
+            # we have to fail so that it will just escape as necessary
+            raise AttributeError
+
         r = self.get(a)
         if not r:
             logging.debug("%s: didn't have property %s" % (repr(self),a))

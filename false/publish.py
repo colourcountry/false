@@ -41,12 +41,12 @@ class ImgRewriter(markdown.treeprocessors.Treeprocessor):
                 src = urllib.parse.urljoin(self.base, src)
                 src_safe = self.tg.safePath(src)
                 if src_safe in self.tg.entities:
-                    logging.debug("Found image with src %s" % src)
+                    logging.debug("Found image with src {src}".format(src=src))
                     image.set('src', src)
                     image.set('context', F.embed)
                     image.tag = 'false-content'
                 else:
-                    logging.info("removing embed of unknown or private entity %s" % src)
+                    logging.info("removing embed of unknown or private entity {src}".format(src=src))
                     parent.remove(image)
 
         for parent in doc.findall('.//a/..'):
@@ -56,7 +56,7 @@ class ImgRewriter(markdown.treeprocessors.Treeprocessor):
 
                 href_safe = self.tg.safePath(href)
                 if href_safe in self.tg.entities:
-                    logging.debug("Found link with href %s" % href)
+                    logging.debug("Found link with href {href}".format(href=href))
                     link.set('src', href)
                     link.set('context', F.link)
                     link.tag = 'false-content'
@@ -65,7 +65,7 @@ class ImgRewriter(markdown.treeprocessors.Treeprocessor):
                         link.remove(c)
                     link.text = ''
                 else:
-                    logging.info("removing link to unknown or private entity %s" % href)
+                    logging.info("removing link to unknown or private entity {href}".format(href=href))
                     parent.remove(link)
 
 class ImgRewriteExtension(markdown.extensions.Extension):
@@ -80,8 +80,8 @@ class ImgRewriteExtension(markdown.extensions.Extension):
 
 def save_ipfs(ipfs_client, r, ipfs_dir, ipfs_cache_dir=None):
     if not r.id.startswith("/ipfs/"):
-        raise IOError("%s: not a NURI, can't save" % r.id)
-    logging.debug("%s: saving to %s" % (r.id, ipfs_dir))
+        raise IOError("{r}: not a NURI, can't save".format(r=r.id))
+    logging.debug("{r}: saving to {dir}".format(r=r.id, dir=ipfs_dir))
     cwd = os.getcwd()
     subdir = os.path.dirname(r.id[6:]) # use local OS path as we just want to create dirs necessary for the path to work on this system
     basename = os.path.basename(r.id)
@@ -93,9 +93,9 @@ def save_ipfs(ipfs_client, r, ipfs_dir, ipfs_cache_dir=None):
         try:
             cache_location = os.path.join(ipfs_cache_dir, subdir, basename, 'blob')
             shutil.copyfile(cache_location, basename)
-            logging.info("%s: copied cached file from %s" % (r.id, cache_location))
-        except FileNotFoundError as e:
-            logging.debug("%s: no cached file: %s" % (r.id, e))
+            logging.info("{r}: copied cached file from {loc}".format(r=r.id, loc=cache_location))
+        except FileNotFoundError as err:
+            logging.debug("{r}: no cached file: {err}".format(r=r.id, err=err))
             ipfs_client.get(r.id)
     else:
         ipfs_client.get(r.id)
@@ -105,10 +105,10 @@ def get_page_path(e_safe, ctx_safe, e_type, output_dir, file_type='html'):
     return os.path.join(output_dir, e_type.safe, ctx_safe, e_safe+'.'+file_type)
 
 def get_page_url(e_safe, ctx_safe, e_type, url_base, file_type='html'):
-    return '%s/%s/%s/%s' % (url_base, e_type.safe, ctx_safe, e_safe+'.'+file_type)
+    return '{base}/{type}/{ctx}/{e}.{ft}'.format(base=url_base, type=e_type.safe, ctx=ctx_safe, e=e_safe, ft=file_type)
 
 def resolve_content_reference(m, tg, base, stage, e, upgrade_to_teaser=False):
-    logging.debug("Resolving content reference %s" % (m.group(1)))
+    logging.debug("Resolving content reference {ref}".format(ref=m.group(1)))
 
     attrs = {}
     for mm in re.finditer('(\S+)="([^"]*)"', m.group(1)):
@@ -127,10 +127,15 @@ def resolve_content_reference(m, tg, base, stage, e, upgrade_to_teaser=False):
     else:
         ctx = F.teaser
 
-    if (tg.entities[src_safe], ctx) not in stage:
-        r = "can't resolve %s@@%s: not staged" % (src, ctx)
+    if src_safe not in tg.entities:
+        r = "can't resolve {src}@@{ctx}: not in universe".format(src=src,ctx=ctx)
         logging.warning(r)
-        return "<!-- %s -->" % r
+        logging.warning("Entities available: {e}".format(e="\n".join(sorted(tg.entities.keys()))))
+        return "<!-- {r} -->".format(r=r)
+    elif (tg.entities[src_safe], ctx) not in stage:
+        r = "can't resolve {src}@@{ctx}: not staged".format(src=src,ctx=ctx)
+        logging.warning(r)
+        return "<!-- {r} -->".format(r=r)
 
     # the stage has (template, path) for each context so [1] references the path
     fn = stage[(tg.entities[src_safe],ctx)][1]
@@ -138,19 +143,19 @@ def resolve_content_reference(m, tg, base, stage, e, upgrade_to_teaser=False):
         with open(fn,'r') as f:
             return f.read()
     except FileNotFoundError:
-        raise PublishNotReadyError("requires %s@@%s" % (src, ctx))
+        raise PublishNotReadyError("requires {src}@@{ctx}".format(src=src,ctx=ctx))
 
 def get_html_body_for_rendition(tg, e, r, ipfs_client, markdown_processor, ipfs_dir, ipfs_cache_dir=None):
     def get_charset(r, e, mt):
         for c in r.charset:
             return c
         else:
-            logging.warning("%s: no charset for %s rendition %s" % (e, mt, repr(r)))
+            logging.warning("{e}: no charset for {mt} rendition {r}".format(e=e, mt=mt, r=repr(r)))
             return 'utf-8'
 
     mt = r.mediaType
 
-    logging.debug('%s: using %s rendition' % (e.id, mt))
+    logging.debug('{e}: using {mt} rendition'.format(e=e.id, mt=mt))
 
     if rdflib.Literal('text/markdown') in mt:
         # markdown is a partial page so safe to embed
@@ -158,10 +163,10 @@ def get_html_body_for_rendition(tg, e, r, ipfs_client, markdown_processor, ipfs_
             try:
                 cache_location = os.path.join(ipfs_cache_dir, r.id[6:], 'blob')
                 with open(cache_location,'rb') as cached_content:
-                    logging.debug("%s: reading from cache at %s" % (r.id, cache_location))
+                    logging.debug("{r}: reading from cache at {loc}".format(r=r.id, loc=cache_location))
                     content = cached_content.read()
             except FileNotFoundError as err:
-                logging.debug("%s: no cached content: %s" % (r.id, err))
+                logging.debug("{r}: no cached content: {err}".format(r=r.id, err=err))
                 content = ipfs_client.cat(r.id)
         else:
             content = ipfs_client.cat(r.id)
@@ -172,16 +177,16 @@ def get_html_body_for_rendition(tg, e, r, ipfs_client, markdown_processor, ipfs_
 
     for m in mt:
         if m.startswith('image/'):
-            return '<img src="%s">' % blobURL
+            return '<img src="{url}">'.format(url=blobURL)
 
     if rdflib.Literal('text/html') in mt:
         # html is assumed to be a complete page
-        return '<div class="__embed__"><iframe src="%s"></iframe></div>' % blobURL
+        return '<div class="__embed__"><iframe src="{url}"></iframe></div>'.format(url=blobURL)
 
     if rdflib.Literal('application/pdf') in mt:
-        return '<div class="__embed__"><embed src="%s" type="application/pdf"></embed></div>' % blobURL
+        return '<div class="__embed__"><embed src="{url}" type="application/pdf"></embed></div>'.format(url=blobURL)
 
-    logging.info("%s: media type %s is not a suitable body" % (e.id, mt))
+    logging.info("{e}: media type {mt} is not a suitable body".format(e=e.id, mt=mt))
     return None
 
 def find_renditions_for_context(rr, ctx):
@@ -204,14 +209,14 @@ def find_renditions_for_context(rr, ctx):
 def get_html_body(tg, e, ctx, ipfs_client, markdown_processor, ipfs_dir, ipfs_cache_dir=None):
     rr = e.get('rendition')
     available = find_renditions_for_context(rr, ctx)
-    logging.debug("%s@@%s: %s of %s renditions are suitable" % (e.id, ctx.id, len(available), len(rr)))
+    logging.debug("{e}@@{ctx}: {n} of {m} renditions are suitable".format(e=e.id, ctx=ctx.id, n=len(available), m=len(rr)))
 
     for r in available:
         eh = get_html_body_for_rendition(tg, e, r, ipfs_client, markdown_processor, ipfs_dir, ipfs_cache_dir)
         if eh:
             return eh
 
-    return '<!-- %s@@%s (tried %s) -->' % (e.id, ctx.id, available)
+    return '<!-- {e}@@{ctx} (tried {av}) -->'.format(e=e.id, ctx=ctx.id, av=available)
 
 def publish_graph(g, cfg):
     tg = TemplatableGraph(g)
@@ -233,7 +238,7 @@ def publish_graph(g, cfg):
     for e_safe, e in tg.entities.items():
         allTypes = e.get('rdf_type')
         if not allTypes:
-            logging.debug("%s: unknown type? %s" % (e.id, e.debug()))
+            logging.debug("{e}: unknown type? {debug}".format(e=e.id, debug=e.debug()))
             continue
 
         if F.WebPage in allTypes:
@@ -252,7 +257,7 @@ def publish_graph(g, cfg):
                 # blank nodes don't have a canonical location,
                 # so can't be linked to and can't have a page,
                 # but they can be embedded
-                logging.debug("%s@@%s: not staging blank node" % (e.id, ctx_id))
+                logging.debug("{e}@@{ctx}: not staging blank node".format(e=e.id, ctx=ctx_id))
                 continue
 
             # use the most direct type because we need to go up in a specific order
@@ -267,7 +272,7 @@ def publish_graph(g, cfg):
                     try:
                         tpl = jinja_e.get_template(t_path)
                     except jinja2.exceptions.TemplateNotFound as err:
-                        logging.debug("%s: no template at %s" % (e.id, t_path))
+                        logging.debug("{e}: no template at {path}".format(e=e.id, path=t_path))
                         continue
 
                     dest = get_page_path(e_safe, ctx_safe, e_type, cfg.output_dir)
@@ -278,13 +283,13 @@ def publish_graph(g, cfg):
                 if e_types is not None:
                     # get the next layer of types
                     e_types = e_types.get('rdfs_subClassOf')
-                    logging.debug("%s@@%s: no template for direct type, trying %s" % (e.id, ctx_id, repr(e_types)))
+                    logging.debug("{e}@@{ctx}: no template for direct type, trying {types}".format(e=e.id, ctx=ctx_id, types=repr(e_types)))
 
             if dest is None:
-                logging.debug("%s@@%s: no template available" % (e.id, ctx_id))
+                logging.debug("{e}@@{ctx}: no template available".format(e=e.id, ctx=ctx_id))
                 continue
 
-            logging.debug('%s@@%s: will render as %s -> %s' % (e.id, ctx_id, e_type.id, dest))
+            logging.debug('{e}@@{ctx}: will render as {type} -> {dest}'.format(e=e.id, ctx=ctx_id, type=e_type.id, dest=dest))
             stage[(e, ctx_id)]=(tpl, dest)
             entities_to_write.add(e)
 
@@ -296,10 +301,10 @@ def publish_graph(g, cfg):
                 home_page = url
 
 
-    logging.info("Stage is ready: %s destinations, %s entities" % (len(stage), len(entities_to_write)))
+    logging.info("Stage is ready: {n} destinations, {m} entities".format(n=len(stage), m=len(entities_to_write)))
 
     if not home_page:
-        raise PublishError("Home page %s is not staged, can't continue" % cfg.home_site)
+        raise PublishError("Home page {home} is not staged, can't continue".format(home=cfg.home_site))
 
     # first put all the renditions up, in case referenced by a template
     for e in entities_to_write:
@@ -312,7 +317,7 @@ def publish_graph(g, cfg):
     while progress:
         iteration += 1
         progress = False
-        logging.info("Publish iteration %d: %s of %s destinations left" % (iteration, len(to_write), len(stage)))
+        logging.info("Publish iteration {i}: {n} of {m} destinations left".format(i=iteration, n=len(to_write), m=len(stage)))
         next_write = set()
 
         # now build the HTML for everything in the different contexts and add to the graph
@@ -323,21 +328,21 @@ def publish_graph(g, cfg):
             htmlProperty = HTML_FOR_CONTEXT[ctx_id]
 
             if htmlProperty in e:
-                raise PublishError("%s: already have inner html for %s" % (e.id, ctx_id))
+                raise PublishError("{e}: already have inner html for {ctx}".format(e=e.id, ctx=ctx_id))
                 continue
 
             ctx_safe = tg.safePath(ctx_id)
             body = get_html_body(tg, e, tg.entities[ctx_safe], cfg.ipfs_client, markdown_processor, cfg.ipfs_dir, cfg.ipfs_cache_dir)
 
             # Add the inner (markdown-derived) html to the graph for templates to pick up
-            logging.debug("Adding this inner html to %s@@%s:\n%s..." % (e.id, ctx_id, body[:100]))
+            logging.debug("Adding this inner html as {prop} to {e}@@{ctx}:\n{html}...".format(prop=htmlProperty, e=e.id, ctx=ctx_id, html=body[:100]))
             tg.add(e.id, htmlProperty, rdflib.Literal(body))
 
             try:
                 content = e.render(tpl)
             except (jinja2.exceptions.UndefinedError, RequiredAttributeError) as err:
                 # If an attribute is missing it may be a body for another entity/context that is not yet rendered
-                logging.debug("%s@@%s not ready for %s: %s" % (e.id, ctx_id, tpl, err))
+                logging.debug("{e}@@{ctx} not ready for {tpl}: {err}".format(e=e.id, ctx=ctx_id, tpl=tpl, err=err))
                 next_write.add((e, ctx_id, err))
                 continue
 
@@ -351,12 +356,12 @@ def publish_graph(g, cfg):
                 content = re.sub("<false-content([^>]*)>\s*</false-content>", lambda m: resolve_content_reference(m, tg, cfg.id_base, stage, e, False), content)
                 content = re.sub("<false-content([^>]*)>", lambda m: resolve_content_reference(m, tg, cfg.id_base, stage, e, False), content)
             except PublishNotReadyError as err:
-                logging.debug("%s@@%s deferred: %s" % (e.id, ctx_id, err))
+                logging.debug("{e}@@{ctx} deferred: {err}".format(e=e.id, ctx=ctx_id, err=err))
                 next_write.add((e, ctx_id, err))
                 continue
 
             os.makedirs(os.path.dirname(dest), exist_ok=True)
-            logging.debug("%s@@%s: writing %s" % (e.id, ctx_id, dest))
+            logging.debug("{e}@@{ctx}: writing {dest}".format(e=e.id, ctx=ctx_id, dest=dest))
             with open(dest,'w') as f:
                 f.write(content)
 
@@ -367,8 +372,8 @@ def publish_graph(g, cfg):
     if to_write:
         err_list = []
         for item in to_write:
-            err_list.append("%s@@%s: %s" % (item[0].id, item[1], item[2]))
-        raise PublishError("%s\n     %s\n\n" % (PUB_FAIL_MSG, '\n     '.join(err_list)))
+            err_list.append("{e}@@{ctx}: {err}".format(e=item[0].id, ctx=item[1], err=item[2]))
+        raise PublishError("{msg}\n     {detail}\n\n".format(msg=PUB_FAIL_MSG, detail='\n     '.join(err_list)))
     else:
         logging.info("All written successfully.")
 
