@@ -133,6 +133,9 @@ def resolve_content_reference(m, tg, base, stage, e, upgrade_to_teaser=False):
         logging.warning("Entities available: {e}".format(e="\n".join(sorted(tg.entities.keys()))))
         return "<!-- {r} -->".format(r=r)
     elif (tg.entities[src_safe], ctx) not in stage:
+        if tg.entities[src_safe].isBlankNode():
+            # an unstaged blank node is not an error
+            return ""
         r = "can't resolve {src}@@{ctx}: not staged".format(src=src,ctx=ctx)
         logging.warning(r)
         return "<!-- {r} -->".format(r=r)
@@ -155,9 +158,8 @@ def get_html_body_for_rendition(tg, e, r, ipfs_client, markdown_processor, ipfs_
 
     mt = r.mediaType
 
-    logging.debug('{e}: using {mt} rendition'.format(e=e.id, mt=mt))
-
     if rdflib.Literal('text/markdown') in mt:
+        logging.debug('{e}: using markdown rendition'.format(e=e.id))
         # markdown is a partial page so safe to embed
         if ipfs_cache_dir:
             try:
@@ -175,19 +177,28 @@ def get_html_body_for_rendition(tg, e, r, ipfs_client, markdown_processor, ipfs_
 
     blobURL = r.blobURL.pick().id
 
+    # FIXME: put this stuff into configuration and templates, not here
+
     for m in mt:
         if m.startswith('image/'):
+            logging.debug('{e}: using {m} rendition'.format(e=e.id, m=m))
             return '<img src="{url}">'.format(url=blobURL)
 
     if rdflib.Literal('text/html') in mt:
         # html is assumed to be a complete page
+        logging.debug('{e}: using html rendition'.format(e=e.id))
         return '<div class="__embed__"><iframe src="{url}"></iframe></div>'.format(url=blobURL)
 
     if rdflib.Literal('application/pdf') in mt:
+        logging.debug('{e}: using pdf rendition'.format(e=e.id))
         return '<div class="__embed__"><embed src="{url}" type="application/pdf"></embed></div>'.format(url=blobURL)
 
-    logging.info("{e}: media type {mt} is not a suitable body".format(e=e.id, mt=mt))
-    return None
+    for m in mt:
+        # just pick one and hope there's a script in the template that can render it
+        logging.debug('{e}: using {m} rendition'.format(e=e.id, m=m))
+        return '<div class="__embed__"><embed src="{url}" type="{m}"></embed></div>'.format(url=blobURL, m=m)
+
+    return None # there weren't any media types
 
 def find_renditions_for_context(rr, ctx):
     for r in rr:
@@ -244,10 +255,10 @@ def publish_graph(g, cfg):
         if F.WebPage in allTypes:
             if hasattr(e, 'url'):
                 if not e.isBlankNode():
-                    raise PublishError("Entities defining web pages must not have a :url property. Use the ID as the URL.")
+                    raise PublishError("{e}: WebPage ({tt}), must not have :url (got {url}). Use the ID as the URL.".format(e=e.id, url=e.url, tt=allTypes))
             else:
                 if e.isBlankNode():
-                    raise PublishError("Blank nodes defining web pages must have a :url property.")
+                    raise PublishError("{e}: WebPage which is a blank node must have a :url property.".format(e=e.id))
                 tg.add(e.id, F.url, rdflib.Literal(e.id))
 
         for ctx_id in HTML_FOR_CONTEXT:

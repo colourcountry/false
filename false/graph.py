@@ -13,13 +13,14 @@ class RequiredAttributeError(AttributeError):
 
 class TemplatableSet(set):
     '''This set can be referenced in templates.
-    If there are multiple items in the set they are concatenated.
+    If there are multiple items in the set they are concatenated with space separators.
+    (this is good for class-type attributes and shouldn't cause problems with HTML)
     If the items of the set are all sets, each attribute of the set is the union of that attribute of all its items.
     The rationale is that by traversing the graph of entities you will end up at a set of sets of literals,
     which will be the thing you want to display.'''
 
     def __str__(self):
-        return ''.join(str(i) for i in self)
+        return ' '.join(str(i) for i in self)
 
     def __repr__(self):
         return '<TS:'+','.join(repr(i) for i in self)+'>'

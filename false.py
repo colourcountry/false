@@ -24,6 +24,7 @@ FILE_TYPES = { "text/html": ".html",
                "text/markdown": ".md",
                "image/jpeg": ".jpg",
                "image/png": ".png",
+               "text/vnd.abc": ".abc",
                "application/pdf": ".pdf" }
 
 # Local content can appear in these contexts
@@ -37,6 +38,7 @@ CONTEXTS = {
              "teaser.": F.teaser,
              "embed.": F.embed,
              "page.": F.page,
+             "download.": F.download
         }
 
 def path_to_id(path, url=''):
