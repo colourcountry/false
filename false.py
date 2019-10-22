@@ -24,6 +24,7 @@ FILE_TYPES = { "text/html": ".html",
                "text/markdown": ".md",
                "image/jpeg": ".jpg",
                "image/png": ".png",
+               "application/vnd.android.package-archive": ".apk",
                "application/pdf": ".pdf" }
 
 # Local content can appear in these contexts

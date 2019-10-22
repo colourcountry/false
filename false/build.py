@@ -70,13 +70,13 @@ class Builder:
             raise ValueError
 
         if not self.cfg.ipfs_client:
-            logging.warning("No IPFS, can't add rendition info to document %s" % entity_id)
+            logging.warning("{id}: no IPFS, can't add rendition info to document".format(id=entity_id))
             return None
 
         if blob_hash:
-            logging.debug("%s: using provided IPFS hash %s" % (entity_id, blob_hash))
+            logging.debug("{id}: using provided IPFS hash {hash}".format(id=entity_id, hash=blob_hash))
         else:
-            logging.debug("%s: adding to IPFS" % entity_id)
+            logging.info("{id}: adding to IPFS: {opening}".format(id=entity_id, opening=str(blob)[:80]))
             blob_hash = self.cfg.ipfs_client.add_bytes(blob)
 
 
