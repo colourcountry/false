@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 import rdflib
-import sys, logging, os, re, urllib.parse, shutil
+import sys, logging, os, re, urllib.parse, shutil, datetime
 import jinja2, markdown
 import pprint
 from false.graph import *
@@ -232,12 +232,16 @@ def get_html_body(tg, e, ctx, ipfs_client, markdown_processor, ipfs_dir, ipfs_ca
 def publish_graph(g, cfg):
     tg = TemplatableGraph(g)
 
+    def get_time_now():
+        return datetime.datetime.utcnow().isoformat()
+
     jinja_e = jinja2.Environment(
         loader=jinja2.FileSystemLoader(cfg.template_dir),
         autoescape=True,
         trim_blocks=True,
-        lstrip_blocks=True
+        lstrip_blocks=True,
     )
+    jinja_e.globals["now"] = get_time_now
 
     markdown_processor = markdown.Markdown(output_format="html5", extensions=[ImgRewriteExtension(tg=tg, base=cfg.id_base), 'tables'])
 
