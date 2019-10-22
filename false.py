@@ -25,6 +25,7 @@ FILE_TYPES = { "text/html": ".html",
                "image/jpeg": ".jpg",
                "image/png": ".png",
                "application/vnd.android.package-archive": ".apk",
+               "text/vnd.abc": ".abc",
                "application/pdf": ".pdf" }
 
 # Local content can appear in these contexts
@@ -38,6 +39,7 @@ CONTEXTS = {
              "teaser.": F.teaser,
              "embed.": F.embed,
              "page.": F.page,
+             "download.": F.download
         }
 
 def path_to_id(path, url=''):
