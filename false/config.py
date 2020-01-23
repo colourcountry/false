@@ -23,7 +23,8 @@ class Config:
         self.home_site = home_site
         self.id_base = id_base
 
-    def setIPFS(self, ipfs_client, ipfs_namespace, ipfs_dir, ipfs_cache_dir=None):
+    def setIPFS(self, ipfs_module, ipfs_client, ipfs_namespace, ipfs_dir, ipfs_cache_dir=None):
+        self.ipfs_module = ipfs_module
         self.ipfs_client = ipfs_client
         self.ipfs_namespace = ipfs_namespace
         if self.output_dir is None:

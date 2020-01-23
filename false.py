@@ -65,7 +65,7 @@ if __name__=="__main__":
 
     try:
         ipfs_client = ipfshttpclient.connect('/ip4/127.0.0.1/tcp/5001')
-        cfg.setIPFS(ipfs_client, ipfs_namespace, "ipfs", os.environ.get("FALSE_IPFS_CACHE", None))
+        cfg.setIPFS(ipfshttpclient, ipfs_client, ipfs_namespace, "ipfs", os.environ.get("FALSE_IPFS_CACHE", None))
     except ipfshttpclient.exceptions.ConnectionError:
         logging.info("No IPFS daemon running. Trying to go ahead with mockipfs")
 

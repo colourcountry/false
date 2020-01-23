@@ -2,7 +2,7 @@
 
 import rdflib
 from rdflib.namespace import RDF, RDFS, DC, SKOS, OWL, XSD
-import logging, os, re, io, datetime, markdown, urllib.parse, json, posixpath
+import logging, os, re, io, datetime, markdown, urllib.parse, json, posixpath, time
 
 F = rdflib.Namespace("http://id.colourcountry.net/false/")
 
@@ -77,8 +77,17 @@ class Builder:
             logging.debug("{id}: using provided IPFS hash {hash}".format(id=entity_id, hash=blob_hash))
         else:
             logging.info("{id}: adding to IPFS: {opening}".format(id=entity_id, opening=str(blob)[:80]))
-            blob_hash = self.cfg.ipfs_client.add_bytes(blob)
 
+            # ipfs client sometimes randomly hangs up
+            backoff = 0
+            while backoff<2:
+                try:
+                    blob_hash = self.cfg.ipfs_client.add_bytes(blob)
+                    break
+                except self.cfg.ipfs_module.exceptions.ConnectionError as e:
+                    logging.info(f"clonk! trying again after {backoff}")
+                    backoff += 0.2
+                    time.sleep(backoff)
 
         blob_filename = "content"+self.file_types[str(mediaType)]
         info_blob = None
