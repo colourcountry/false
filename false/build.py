@@ -84,7 +84,7 @@ class Builder:
                 try:
                     blob_hash = self.cfg.ipfs_client.add_bytes(blob)
                     break
-                except self.cfg.ipfs_module.exceptions.ConnectionError as e:
+                except Exception as e: # ipfshttpclient gives us no useful superclass to catch
                     logging.info(f"clonk! trying again after {backoff}")
                     backoff += 0.2
                     time.sleep(backoff)
