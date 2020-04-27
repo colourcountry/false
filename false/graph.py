@@ -25,6 +25,15 @@ class TemplatableSet(set):
     def __repr__(self):
         return '<TS:'+','.join(repr(i) for i in self)+'>'
 
+    def filter(self, l):
+        return TemplatableSet({x for x in self if l(x)})
+
+    def including_types(self, tt):
+        return self.filter(lambda x: x.is_any_type(tt))
+
+    def excluding_types(self, tt):
+        return self.filter(lambda x: not x.is_any_type(tt))
+
     def surround(self, pfx, sfx, ifx=''):
         return pfx+(sfx+ifx+pfx).join(str(i) for i in self)+sfx
 
@@ -213,6 +222,12 @@ class TemplatableEntity:
 
     def is_type(self, t):
         return t in [x.safe for x in self.get('rdf_type')]
+
+    def is_any_type(self, tt):
+        for t in tt:
+            if self.is_type(t):
+                return True
+        return False
 
     def type(self):
         directTypes = self.get('rdf_type')
