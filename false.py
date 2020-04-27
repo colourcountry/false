@@ -71,7 +71,7 @@ if __name__=="__main__":
 
         import false.mockipfs
         ipfs_client = false.mockipfs.MockIPFS("ipfs")
-        cfg.setIPFS(ipfs_client, ipfs_namespace, "ipfs", os.environ.get("FALSE_IPFS_CACHE", None))
+        cfg.setIPFS(false.mockipfs, ipfs_client, ipfs_namespace, "ipfs", os.environ.get("FALSE_IPFS_CACHE", None))
 
     cfg.validate()
 
