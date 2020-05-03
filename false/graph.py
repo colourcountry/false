@@ -171,6 +171,7 @@ class TemplatableEntity:
         elif isinstance(s, rdflib.Literal):
             self.id = rdflib.URIRef("__:"+hash(s))
             self.asEmbed = s # force string value
+            self.language = s.language
             logging.debug("Protected literal %s" % self.id)
         else:
             self.id = s
