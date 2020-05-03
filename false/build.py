@@ -181,8 +181,20 @@ class Builder:
         return wrapped_id
 
     def add_markdown_refs(self, content_id, blob):
-        html = self.mdproc.convert(blob)
-        for url in self.mdproc.images:
+        mdproc = markdown.Markdown(extensions=[ImgExtExtension(base=self.cfg.id_base), 'tables'])
+        html = mdproc.convert(blob)
+
+        try:
+          imgs = mdproc.images
+        except AttributeError:
+          imgs = []
+
+        try:
+          links = mdproc.links
+        except AttributeError:
+          links = []
+
+        for url in imgs:
             uriref = rdflib.URIRef(url)
             if uriref in self.private_ids:
                 logging.debug("%s: found embed of private entity %s, doing nothing" % (content_id, url))
@@ -195,7 +207,7 @@ class Builder:
             else:
                 pass # legacy image
 
-        for url in self.mdproc.links:
+        for url in links:
             uriref = rdflib.URIRef(url)
             if uriref in self.private_ids:
                 logging.info("%s: found link to private entity %s, doing nothing" % (content_id, url))
@@ -229,7 +241,6 @@ class Builder:
         self.content = set()
         self.valid_contexts = {}
 
-        self.mdproc = markdown.Markdown(extensions=[ImgExtExtension(base=self.cfg.id_base), 'tables'])
         doc_types = [x[0] for x in self.g.query("""select ?t where { ?t rdfs:subClassOf+ :Content }""")]
 
 
