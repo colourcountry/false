@@ -105,8 +105,5 @@ venv.bak/
 
 pub/
 ipfs/
-.embed.*
-.page.*
-.teaser.*
-.download.*
+build/
 false.log
