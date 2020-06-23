@@ -19,43 +19,54 @@ except KeyError:
     pass
 logging.basicConfig(level=logging.DEBUG,handlers=log_handlers)
 
-EXTENSIONS = { "md": "text/markdown",
-               "jpg": "image/jpeg" }
+EXTENSIONS = {
+    "md": "text/markdown",
+    "jpg": "image/jpeg",
+    "png": "image/png",
+    "abc": "text/vnd.abc",
+    "apk": "application/vnd.android.package-archive"
+}
 
 CONTEXTS = {
-             "@teaser": F.teaser,
-             "@embed": F.embed,
-             "@page": F.page,
-             "@download": F.download,
-        }
+    "@teaser": F.teaser,
+    "@embed": F.embed,
+    "@page": F.page,
+    "@download": F.download,
+}
 
 # A RENDITION KEY distinguishes different renditions of the same content, so that conversion processes
 # can tell if they are stale. Rendition keys don't go into the graph or get exposed to IPFS or anything.
 RENDITION_KEYS = {
-             F.teaser: "t",
-             F.embed: "e",
-             F.page: "p",
-             F.download: "d"
-        }
+     F.teaser: "t",
+     F.embed: "e",
+     F.page: "p",
+     F.download: "d"
+}
 
 teaser_convert_command = "convert -verbose -auto-orient -resize 400x225^ -gravity center -crop 400x225+0+0".split(" ")
 embed_convert_command = "convert -verbose -auto-orient -resize 800x800>".split(" ")
 page_convert_command = "convert -verbose -auto-orient -resize 1200x1200>".split(" ")
 
 copy = lambda src,dest: ["cp",src,dest]
+copy_standard = { F.page: copy, F.download: copy }
+convert_image = {
+    F.teaser: lambda src,dest: teaser_convert_command+[src,dest],
+    F.embed: lambda src,dest: embed_convert_command+[src,dest],
+    F.page: lambda src,dest: page_convert_command+[src,dest],
+    F.download: copy,
+}
+
 
 CONVERSIONS = {
-        "jpg": {
-            F.teaser: lambda src,dest: teaser_convert_command+[src,dest],
-            F.embed: lambda src,dest: embed_convert_command+[src,dest],
-            F.page: lambda src,dest: page_convert_command+[src,dest],
-            F.download: copy,
-        },
-        "md": {
-            F.embed: copy,
-            F.page: copy,
-            F.download: copy
-        },
+    "jpg": convert_image,
+	"png": convert_image,
+    "md": {
+        F.embed: copy,
+        F.page: copy,
+        F.download: copy
+    },
+	"abc": copy_standard,
+	"apk": copy_standard
 }
 
 def ipfs_add_dir(dirpath):
@@ -241,15 +252,15 @@ class Builder:
         for url in links:
             uriref = rdflib.URIRef(url)
             if uriref in self.private_ids:
-                logging.info("%s: found link to private entity %s, doing nothing" % (content_id, url))
+                logging.debug("%s: found link to private entity %s, doing nothing" % (content_id, url))
             elif uriref in self.content:
-                logging.info("%s: found mention of %s" % (content_id, url))
+                logging.debug("%s: found mention of %s" % (content_id, url))
                 self.g.add((content_id, F.mentions, uriref))
             elif uriref in self.entities:
-                logging.info("%s: found mention of %s" % (content_id, url))
+                logging.debug("%s: found mention of %s" % (content_id, url))
                 self.g.add((content_id, F.mentions, uriref))
             else:
-                logging.info("%s: found link to %s" % (content_id, url))
+                logging.debug("%s: found link to %s" % (content_id, url))
                 self.g.add((content_id, F.links, uriref))
                 self.g.add((uriref, RDF.type, F.WebPage))
 

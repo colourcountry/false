@@ -31,7 +31,7 @@ def ipfs_cat(path,cache_dir=None):
     if cache_dir:
         try:
             r = open(os.path.join(cache_dir,n.group(1)),"rb").read()
-            logging.info(f"Found cached blob for {path}")
+            logging.debug(f"Found cached blob for {path}")
             return r
         except IOError as e:
             logging.info(f"Cache miss for {path}: {e}")
@@ -155,7 +155,7 @@ def get_html_body_for_rendition(tg, e, r, markdown_processor, cache_dir):
     mt = r.mediaType
 
     if rdflib.Literal('text/markdown') in mt:
-        logging.info(f"{e.id}: using markdown rendition {r.id}")
+        logging.debug(f"{e.id}: using markdown rendition {r.id}")
         content = ipfs_cat(r.id, cache_dir)
 
         return markdown_processor.convert(content.decode(get_charset(r, e, mt)))
