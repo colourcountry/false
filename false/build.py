@@ -2,12 +2,96 @@
 
 import rdflib
 from rdflib.namespace import RDF, RDFS, DC, SKOS, OWL, XSD
-import logging, os, re, io, datetime, markdown, urllib.parse, json, posixpath, time
+import logging, os, re, io, datetime, markdown, urllib.parse, json, posixpath, time, subprocess
 
 F = rdflib.Namespace("http://id.colourcountry.net/false/")
 
-class ValidationError(ValueError):
+# rdflib will happily save relative-looking URIs, but it puts "file:///" in front when loading them :(
+# so we'll temporarily use a URI scheme, and make good on final publish
+IPFS = rdflib.Namespace("ipfs:/")
+
+log_handlers=[logging.StreamHandler()]
+log_handlers[0].setLevel(logging.INFO)
+
+try:
+    log_handlers.append(logging.FileHandler(os.environ["FALSE_LOG_FILE"]))
+except KeyError:
     pass
+logging.basicConfig(level=logging.DEBUG,handlers=log_handlers)
+
+EXTENSIONS = { "md": "text/markdown",
+               "jpg": "image/jpeg" }
+
+CONTEXTS = {
+             "@teaser": F.teaser,
+             "@embed": F.embed,
+             "@page": F.page,
+             "@download": F.download,
+        }
+
+# A RENDITION KEY distinguishes different renditions of the same content, so that conversion processes
+# can tell if they are stale. Rendition keys don't go into the graph or get exposed to IPFS or anything.
+RENDITION_KEYS = {
+             F.teaser: "t",
+             F.embed: "e",
+             F.page: "p",
+             F.download: "d"
+        }
+
+teaser_convert_command = "convert -verbose -auto-orient -resize 400x225^ -gravity center -crop 400x225+0+0".split(" ")
+embed_convert_command = "convert -verbose -auto-orient -resize 800x800>".split(" ")
+page_convert_command = "convert -verbose -auto-orient -resize 1200x1200>".split(" ")
+
+copy = lambda src,dest: ["cp",src,dest]
+
+CONVERSIONS = {
+        "jpg": {
+            F.teaser: lambda src,dest: teaser_convert_command+[src,dest],
+            F.embed: lambda src,dest: embed_convert_command+[src,dest],
+            F.page: lambda src,dest: page_convert_command+[src,dest],
+            F.download: copy,
+        },
+        "md": {
+            F.embed: copy,
+            F.page: copy,
+            F.download: copy
+        },
+}
+
+def ipfs_add_dir(dirpath):
+    r = subprocess.run(["ipfs","add","-Qnr",dirpath], capture_output=True).stdout.strip()
+    # Remove the "n" to actually add to IPFS. With "n", hashes and copies only.
+    # FIXME: make accessible to user
+    logging.info(f"{r} added from {dirpath}")
+    return r
+
+def get_existing_hash(blob, entity_dir, blob_path):
+    # FIXME: this will only catch changes to the blob, not to the info (is this bad?)
+
+    id_cache_file = entity_dir+".ipfs-hash"
+    try:
+        existing_hash = open(id_cache_file,"rb").read()
+    except FileNotFoundError:
+        logging.info(f"{entity_dir}: no existing hash available")
+        return
+
+    try:
+        existing_size = os.path.getsize(blob_path)
+    except OSError:
+        existing_size = 0
+
+    if len(blob) != existing_size:
+        logging.info(f"{entity_dir}: blob has changed size")
+        return
+
+    old_blob = open(blob_path,"rb").read()
+
+    if old_blob != blob:
+        logging.info(f"{entity_dir}: blob has changed")
+        return
+
+    return existing_hash
+
 
 # h/t https://stackoverflow.com/questions/29259912/how-can-i-get-a-list-of-image-urls-from-a-markdown-file-in-python
 class ImgExtractor(markdown.treeprocessors.Treeprocessor):
@@ -50,12 +134,15 @@ class ImgExtExtension(markdown.extensions.Extension):
         img_ext = ImgExtractor(md, self.getConfig('base'))
         md.treeprocessors.add('imgext', img_ext, '>inline')
 
+
+
+
 class Builder:
-    def __init__(self, g, cfg, files, file_types):
-        self.cfg = cfg
-        self.g = g
-        self.files = files
-        self.file_types = file_types
+    def __init__(self, work_dir, id_base):
+        self.g = rdflib.Graph()
+        self.work_dir = work_dir
+        os.makedirs(work_dir, exist_ok=True)
+        self.id_base = id_base
 
         # Content can appear in these contexts.
         self.contexts_for_ava = {
@@ -64,124 +151,68 @@ class Builder:
                     F.restricted: {F.link, F.teaser}
         }
 
+        self.files = {ctx: {} for ctx in set(CONTEXTS.values())}
 
-    def add_rendition(self, mediaType, blob=None, blob_hash=None, entity_id=None, **properties):
-        if not entity_id:
-            raise ValueError
+    def add_ttl(self, filename):
+        self.g.load(filename, format='ttl')
+        return self
 
-        if not self.cfg.ipfs_client:
-            logging.warning("{id}: no IPFS, can't add rendition info to document".format(id=entity_id))
-            return None
+    def add_dir(self,src_root):
+        def path_to_id(path, url=''):
+            if not path:
+                return url
+            p, s = os.path.split(path)
+            if not s:
+                return url
+            if url:
+                return path_to_id(p, os.path.join(s, url))
+            return path_to_id(p, s)
 
-        if blob_hash:
-            logging.debug("{id}: using provided IPFS hash {hash}".format(id=entity_id, hash=blob_hash))
-        else:
-            logging.info("{id}: adding to IPFS: {opening}".format(id=entity_id, opening=str(blob)[:80]))
-
-            # ipfs client sometimes randomly hangs up
-            backoff = 0
-            while backoff<2:
-                try:
-                    blob_hash = self.cfg.ipfs_client.add_bytes(blob)
-                    break
-                except Exception as e: # ipfshttpclient gives us no useful superclass to catch
-                    logging.info(f"clonk! trying again after {backoff}")
-                    backoff += 0.2
-                    time.sleep(backoff)
-
-        blob_filename = "content"+self.file_types[str(mediaType)]
-        info_blob = None
-        if not isinstance(entity_id, rdflib.BNode):
-            doc_basename = posixpath.basename(entity_id)
-            if doc_basename:
-                blob_filename = doc_basename+self.file_types[str(mediaType)]
-            info = rdflib.Graph()
-            info.bind('', F)
-            for p, o in self.g[entity_id]:
-                if p != F.rendition: # we might know about other renditions already, but it's pot luck, so best to keep just this one
-                    info.add((entity_id, p, o))
-            info.add((entity_id, F.rendition, rdflib.URIRef(blob_filename))) # relative path to the file, as we don't know the hash
-            info_blob = info.serialize(format='ttl')
+        logging.info("** Looking for media in graph **")
 
 
-        ipld_blob = None
-
-        if info_blob:
-            if self.cfg.ipfs_cache_dir:
-                try:
-                    with open(os.path.join(self.cfg.ipfs_cache_dir, blob_hash, 'info.ttl'), 'rb') as info_cache:
-                        info_cached = info_cache.read()
-                        if info_cached == info_blob:
-                            logging.debug("%s: found existing info for %s" % (entity_id, blob_hash))
-                            ipld_blob = open(os.path.join(self.cfg.ipfs_cache_dir, blob_hash, '.ipld.json'), 'rb').read()
-                        else:
-                            logging.debug("%s: cached info didn't match, refreshing %s" % (entity_id, blob_hash))
-                            logging.debug("%s: %s %s" % (entity_id, info_cached, info_blob))
-                except FileNotFoundError as e:
-                    logging.debug("%s: no cached info: %s" % (entity_id, e))
-                    pass
-
-        if not ipld_blob:
-            ipld = {"Links": [{"Name": blob_filename, "Hash": blob_hash}], # FIXME "Size": len(blob)}],
-                "Data": "\u0008\u0001"} # this data seems to be required for something to be a directory
-
-            if info_blob:
-                info_hash = self.cfg.ipfs_client.add_bytes(info_blob)
-                ipld["Links"].append({"Name": "info.ttl", "Hash": info_hash, "Size": len(info_blob)})
-
-            ipld_blob = json.dumps(ipld).encode('utf-8')
-
-        wrapped_id = None
-
-        if self.cfg.ipfs_cache_dir:
-            try:
-                with open(os.path.join(self.cfg.ipfs_cache_dir, blob_hash, '.ipld.json'), 'rb') as ipld_cache:
-                    ipld_cached = ipld_cache.read()
-                    if ipld_cached == ipld_blob:
-                        wrapped_id = rdflib.URIRef(open(os.path.join(self.cfg.ipfs_cache_dir, blob_hash, '.wrapped_id'), 'r').read())
-                        logging.debug("%s: found existing wrapped_id for %s" % (entity_id, blob_hash))
-                    else:
-                        logging.debug("%s: cached IPLD didn't match, refreshing %s" % (entity_id, blob_hash))
-                        logging.debug("%s: %s %s" % (entity_id, ipld_cached, ipld_blob))
-            except FileNotFoundError as e:
-                logging.debug("%s: no cached wrapped_id: %s" % (entity_id, e))
-                pass
-
-        if not wrapped_id:
-            wrapper_resp = self.cfg.ipfs_client.object.put(io.BytesIO(ipld_blob))
-            wrapped_id = self.cfg.ipfs_namespace["%s/%s" % (wrapper_resp["Hash"], blob_filename)]
-            if self.cfg.ipfs_cache_dir:
-                os.makedirs(os.path.join(self.cfg.ipfs_cache_dir, blob_hash), exist_ok=True)
-                open(os.path.join(self.cfg.ipfs_cache_dir, blob_hash, '.ipld.json'), 'wb').write(ipld_blob)
-                open(os.path.join(self.cfg.ipfs_cache_dir, blob_hash, '.wrapped_id'), 'w').write(wrapped_id)
-                if info_blob:
-                    open(os.path.join(self.cfg.ipfs_cache_dir, blob_hash, 'info.ttl'), 'wb').write(info_blob)
-                if blob:
-                    open(os.path.join(self.cfg.ipfs_cache_dir, blob_hash, blob_filename), 'wb').write(blob)
-                    logging.debug("%s: added cache data for %s (with blob)" % (entity_id, blob_hash))
+        for path, dirs, files in os.walk(src_root):
+            for f in files:
+                fullf = os.path.join(path,f)
+                if f.endswith('.ttl'):
+                    logging.info(f"loading rdf from {path}/{f}")
+                    self.g.load(fullf, format='ttl', publicID=self.id_base)
                 else:
-                    logging.debug("%s: added cache data for %s (no blob)" % (entity_id, blob_hash))
+                    # look for renditions of the entities that might be referenced
 
-        if blob and self.cfg.ipfs_cache_dir:
-            os.makedirs(os.path.join(self.cfg.ipfs_cache_dir, wrapped_id[6:]), exist_ok=True)
-            try:
-                open(os.path.join(self.cfg.ipfs_cache_dir, wrapped_id[6:], 'blob'), 'rb')
-            except FileNotFoundError:
-                open(os.path.join(self.cfg.ipfs_cache_dir, wrapped_id[6:], 'blob'), 'wb').write(blob)
+                    for pfx, ctx in CONTEXTS.items():
+                        m = re.match("(.*)[.]([^.]*)$",f)
+                        ext = m.group(2)
+                        if not m or ext not in EXTENSIONS:
+                            logging.warning(f"unsupported file {path}/{f}")
+                            continue
 
-        self.g.add((wrapped_id, RDF.type, F.Media))
-        self.g.add((wrapped_id, F.mediaType, mediaType))
-        self.g.add((wrapped_id, F.blobURL, wrapped_id))
 
-        for k, v in properties.items():
-            logging.debug("%s: adding property %s=%s" % (entity_id, k, v))
-            self.g.add((wrapped_id, F[k], v))
-        logging.debug("%s: adding rendition %s" % (entity_id, wrapped_id))
-        self.g.add((entity_id, F.rendition, wrapped_id))
-        return wrapped_id
+                        pm = re.match("(.*)"+pfx+"[.]([^.]*)$",f)
+                        if pm:
+                            entity_id = rdflib.URIRef(urllib.parse.urljoin(self.id_base, path_to_id(path[len(src_root):], pm.group(1))))
 
-    def add_markdown_refs(self, content_id, blob):
-        mdproc = markdown.Markdown(extensions=[ImgExtExtension(base=self.cfg.id_base), 'tables'])
+                            if not path.startswith(src_root):
+                                raise ValueError(f"expected path under {src_root}, got {path}")
+
+                            logging.info(f"{entity_id}@@{ctx}: adding {fullf}")
+                            self.files[ctx][entity_id] = (fullf, ext, False)
+                            continue
+                        else:
+                            entity_id = rdflib.URIRef(urllib.parse.urljoin(self.id_base, path_to_id(path[len(src_root):], m.group(1))))
+
+                            if entity_id in self.files[ctx]:
+                                logging.info(f"{entity_id}@@{ctx}: found a context-specific file")
+                                continue
+
+                            logging.info(f"{entity_id}@@{ctx}: will convert {fullf}")
+                            self.files[ctx][entity_id] = (fullf, ext, True)
+
+        return self
+
+
+    def _add_markdown_refs(self, content_id, blob):
+        mdproc = markdown.Markdown(extensions=[ImgExtExtension(base=self.id_base), 'tables'])
         html = mdproc.convert(blob)
 
         try:
@@ -222,16 +253,106 @@ class Builder:
                 self.g.add((content_id, F.links, uriref))
                 self.g.add((uriref, RDF.type, F.WebPage))
 
-    def build(self):
-        self.g.bind('ipfs', self.cfg.ipfs_namespace)
 
-        # first excise all private stuff, we don't want to know about it
+    def _make_entity_dir(self, entity_id, rendition_key=None):
+        if entity_id.startswith(self.id_base):
+            entity_dir = os.path.join(self.work_dir,re.sub(r"[/\\]","__",entity_id[len(self.id_base):]))
+        else:
+            entity_dir = os.path.join(self.work_dir,re.sub(r"[/\\]","__",entity_id))
+
+        if rendition_key:
+            entity_dir = os.path.join(entity_dir, rendition_key)
+
+        os.makedirs(entity_dir, exist_ok=True)
+
+        return entity_dir
+
+    def _get_converted_file(self, entity_id, fn, ext, ctx, rendition_key, blob_filename):
+        entity_dir = self._make_entity_dir(entity_id)
+
+        # If there's not an existing file then we have to convert
+        existing_converted_path = os.path.join(entity_dir,rendition_key,blob_filename) # FIXME this is a bit spaghetti
+        if not os.path.exists(existing_converted_path):
+            # FIXME: this process doesn't return the converted path above, but just __last_conversion,
+            # and we rely on the blob reading to pick it up and add it, which feels odd
+            return self._convert_file(entity_id, entity_dir, fn, ext, ctx)
+
+        # Assume that if the original file hasn't changed then its conversions are also ok
+        existing_path = os.path.join(entity_dir,"original."+ext)
+
+        r = subprocess.run(["diff", existing_path, fn])
+
+        if r.returncode!=0:
+            logging.info(f"{entity_id}@@{ctx}: file {fn} has changed")
+            return self._convert_file(entity_id, entity_dir, fn, ext, ctx)
+
+        logging.debug(f"{entity_id}@@{ctx}: file has not changed")
+
+        return existing_converted_path
+
+    def _convert_file(self, entity_id, entity_dir, fn, ext, ctx):
+        subprocess.run(["cp",fn,os.path.join(entity_dir,"original."+ext)])
+        converted_file = os.path.join(self.work_dir,"__last_conversion."+ext)
+        logging.info(f"{entity_id}@@{ctx}: converting {fn}")
+        r = subprocess.run(CONVERSIONS[ext][ctx](fn,converted_file))
+        return converted_file
+
+
+    def _add_rendition(self, mediaType, entity_id, rendition_key, blob=None, blob_filename=None, **properties):
+        info_blob = None
+        info = rdflib.Graph()
+        info.bind('', F)
+
+        # add everything we know about this entity
+        for p, o in self.g[entity_id]:
+            if p != F.rendition: # we might know about other renditions already, but it's pot luck, so best to keep just this one
+                info.add((entity_id, p, o))
+
+        blob_uri = rdflib.URIRef(blob_filename)
+        info.add((entity_id, F.rendition, blob_uri)) # relative path to the file, as we don't know the hash
+        info.add((blob_uri, F.mediaType, mediaType))
+
+        info_blob = info.serialize(format='ttl')
+
+        entity_dir = self._make_entity_dir(entity_id, rendition_key)
+
+        if info_blob:
+          open(os.path.join(entity_dir,"info.ttl"),"wb").write(info_blob)
+
+        blob_path = os.path.join(entity_dir,blob_filename)
+        ipfs_hash = get_existing_hash(blob, entity_dir, blob_path)
+
+        if not ipfs_hash:
+            open(blob_path,"wb").write(blob)
+            ipfs_hash = ipfs_add_dir(entity_dir)
+            open(entity_dir+".ipfs-hash","wb").write(ipfs_hash)
+
+        ipfs_id = IPFS[ipfs_hash.decode("us-ascii")+"/"+blob_filename]
+
+        self.g.add((ipfs_id, RDF.type, F.Media))
+        self.g.add((ipfs_id, F.mediaType, mediaType))
+        self.g.add((ipfs_id, F.blobURL, ipfs_id)) # in IPFS, IDs and URLs are the same thing
+        self.g.add((ipfs_id, F.localPath, rdflib.Literal(entity_dir))) # used (and removed) by the publisher to avoid IPFS round trips
+
+        for k, v in properties.items():
+            logging.debug(f"{entity_id}: adding property {k}={v}")
+            self.g.add((ipfs_id, F[k], v))
+        self.g.add((entity_id, F.rendition, ipfs_id))
+        logging.debug(f"{entity_id}: finished adding rendition {ipfs_id}")
+        return ipfs_id
+
+
+
+    def build(self):
+        self.g.bind('ipfs', IPFS)
+
+        # first remove all private stuff, we don't want to know about it, convert it, or add it to IPFS
         self.private_ids = set()
 
         logging.debug( list(self.g.triples((None, F.hasAvailability, F.private))) )
         for triple in self.g.triples((None, F.hasAvailability, F.private)):
             entity_id = triple[0]
-            logging.info("%s: is private, dropping" % entity_id)
+            logging.info(f"{entity_id}: dropping private entity")
             self.private_ids.add(entity_id)
             self.g.remove((entity_id, None, None))
             self.g.remove((None, entity_id, None))
@@ -248,89 +369,88 @@ class Builder:
         for s, p, o in type_spo:
             self.entities.add(s)
             if o == F.Content or o in doc_types:
-                logging.debug("Found content %s (%s)" % (s, s.__class__.__name__))
+                logging.debug(f"{s}: is content ({s.__class__.__name__})")
                 self.content.add(s)
 
         rights_spo = self.g.triples((None, F.hasAvailability, None))
         for s, p, o in rights_spo:
             if s in self.valid_contexts:
-                raise ValueError("%s: multiple availability values" % s)
+                raise ValueError(f"{s}: multiple availability values")
             self.valid_contexts[s] = self.contexts_for_ava[o]
 
         for entity_id in self.entities:
             if entity_id not in self.valid_contexts:
-                logging.debug("%s: no availability specified, defaulting to public" % entity_id)
+                logging.debug(f"{entity_id}: no availability specified, defaulting to public")
                 self.valid_contexts[entity_id] = self.contexts_for_ava[F.public]
                 self.g.add((entity_id, F.hasAvailability, F.public))
         renditions_to_add = []
 
         for content_id in self.content:
-            #FIXME: This triple makes the IPFS hash of every content different every time. Think of a better way
-            #self.g.add((content_id, F.published, rdflib.Literal(datetime.datetime.now().isoformat(), datatype=XSD.dateTime)))
-
-            # look for markdown
+            # look for markdown pseudo-property
             md = self.g.triples((content_id, F.markdown, None))
             for spo in md:
                 s, p, o = spo
 
                 if F.page not in self.valid_contexts[content_id]:
-                    logging.debug("%s: discarding markdown because page is not a valid context" % content_id)
+                    logging.debug(f"{content_id}: discarding supplied markdown because it will never be rendered")
                 else:
-                    logging.debug("%s: adding rendition for markdown property:\n   %s..." % (content_id, o[:100].strip()))
+                    logging.debug(f"{content_id}: adding rendition for markdown property: {o[:50].strip()}")
                     renditions_to_add.append({
                         'entity_id': content_id,
                         'blob': o.encode('utf-8'),
+                        'blob_filename': posixpath.basename(content_id)+".md",
+                        'rendition_key': RENDITION_KEYS[F.page],
                         'mediaType': rdflib.Literal('text/markdown'),
                         'charset': rdflib.Literal('utf-8'),
                         'intendedUse': F.page # embeds will fall back to this, but it can be distinguished from stuff to offer as a download
                     })
 
-                    self.add_markdown_refs(s, o)
-
+                    self._add_markdown_refs(s, o)
 
         for ctx, id_to_file in self.files.items():
-            for entity_id, fn in id_to_file.items():
-                if entity_id not in self.valid_contexts or ctx not in self.valid_contexts[entity_id]:
+            for entity_id, (fn, ext, needs_conversion) in id_to_file.items():
+                if entity_id not in self.valid_contexts:
+                    logging.info(f"{entity_id} is not defined, dropping")
                     continue
-                for mime, ext in self.file_types.items():
-                    if not fn.endswith(ext):
-                        continue ## FIXME this is a silly way around
 
-                    m = re.match('.*[.]ipfs-([^.]+)[.].*', fn)
-                    if m:
-                        blob = None
-                        blob_hash = m.group(1)
-                        logging.debug("%s: adding rendition for file %s with provided ipfs hash %s" % (entity_id, fn, blob_hash))
-                        renditions_to_add.append({
-                            'entity_id': entity_id,
-                            'blob_hash': blob_hash,
-                            'mediaType': rdflib.Literal(mime),
-                            'charset': rdflib.Literal("utf-8"),
-                            'intendedUse': ctx
-                        })
-                    else:
+                if ctx not in self.valid_contexts[entity_id]:
+                    continue
+
+                rendition_key = RENDITION_KEYS[ctx]
+                blob_filename = posixpath.basename(entity_id)+"."+ext
+
+                if needs_conversion:
+                    if ext not in CONVERSIONS:
+                        logging.warning(f"{entity_id}: no conversions available for {EXTENSIONS[ext]}")
+                        continue
+                    if ctx not in CONVERSIONS[ext]:
+                        logging.warning(f"{entity_id}@@{ctx}: no conversion available for {EXTENSIONS[ext]}")
+                        continue
+
+                    fn = self._get_converted_file(entity_id, fn, ext, ctx, rendition_key, blob_filename)
+
+                blob = open(fn,'rb').read()
+                logging.debug(f"{entity_id}: found rendition at {fn}")
+                renditions_to_add.append({
+                    'entity_id': entity_id,
+                    'blob': blob,
+                    'blob_filename': blob_filename,
+                    'rendition_key': rendition_key,
+                    'mediaType': rdflib.Literal(EXTENSIONS[ext]),
+                    'charset': rdflib.Literal("utf-8"),
+                    'intendedUse': ctx
+                })
+
+                if EXTENSIONS[ext] == 'text/markdown':
+                    if not blob:
                         blob = open(fn,'rb').read()
-                        logging.debug("%s: adding rendition for file %s" % (entity_id, fn))
-                        renditions_to_add.append({
-                            'entity_id': entity_id,
-                            'blob': blob,
-                            'mediaType': rdflib.Literal(mime),
-                            'charset': rdflib.Literal("utf-8"),
-                            'intendedUse': ctx
-                        })
-
-                    logging.info("%s@@%s: using %s" % (content_id, ctx, fn))
-
-                    if mime == 'text/markdown':
-                        if not blob:
-                            blob = open(fn,'rb').read()
-                        self.add_markdown_refs(content_id, blob.decode('utf-8'))
+                    self._add_markdown_refs(content_id, blob.decode('utf-8'))
 
         # markdown properties have all been converted or discarded
         self.g.remove((None, F.markdown, None))
 
         # graph is now ready
         for r in renditions_to_add:
-            blob_id = self.add_rendition(**r)
+            blob_id = self._add_rendition(**r)
 
         return self.g

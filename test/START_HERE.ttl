@@ -44,7 +44,7 @@ This web site demonstrates as many features of FALSE as I could fit in.
 
 FALSE is a Fully Automated <s>Luxury</s> Lightweight Semantic Engine.
 
-It is a static web site generator powered by RDF and IPFS, with a dash of [Markdown][1] and a sprinkle of [Jinja][2].
+It's a static web site generator powered by RDF and IPFS, with a dash of [Markdown][1] and a sprinkle of [Jinja][2].
 
 [1]: markdown
 [2]: jinja
