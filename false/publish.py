@@ -36,7 +36,7 @@ def ipfs_cat(path,cache_dir=None):
         except IOError as e:
             logging.info(f"Cache miss for {path}: {e}")
 
-    r = subprocess.run(["ipfs","cat",n.group(1)], capture_output=True).stdout.strip() # FIXME remove n when ready
+    r = subprocess.run(["ipfs","cat",n.group(1)], stdout=subprocess.PIPE, stderr=subprocess.PIPE).stdout.strip()
     logging.info(f"IPFS cat {path}: {r}")
     return r
 

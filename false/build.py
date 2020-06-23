@@ -59,7 +59,7 @@ CONVERSIONS = {
 }
 
 def ipfs_add_dir(dirpath):
-    r = subprocess.run(["ipfs","add","-Qnr",dirpath], capture_output=True).stdout.strip()
+    r = subprocess.run(["ipfs","add","-Qnr",dirpath], stdout=subprocess.PIPE, stderr=subprocess.PIPE).stdout.strip()
     # Remove the "n" to actually add to IPFS. With "n", hashes and copies only.
     # FIXME: make accessible to user
     logging.info(f"{r} added from {dirpath}")
