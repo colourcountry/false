@@ -19,12 +19,18 @@ except KeyError:
     pass
 logging.basicConfig(level=logging.DEBUG,handlers=log_handlers)
 
+# TODO make these configurable
 EXTENSIONS = {
+    "html": "text/html",
     "md": "text/markdown",
+    "abc": "text/vnd.abc",
+
     "jpg": "image/jpeg",
     "png": "image/png",
-    "abc": "text/vnd.abc",
-    "apk": "application/vnd.android.package-archive"
+    "gif": "image/gif",
+
+    "pdf": "application/pdf",
+    "apk": "application/vnd.android.package-archive",
 }
 
 CONTEXTS = {
@@ -48,7 +54,14 @@ embed_convert_command = "convert -verbose -auto-orient -resize 800x800>".split("
 page_convert_command = "convert -verbose -auto-orient -resize 1200x1200>".split(" ")
 
 copy = lambda src,dest: ["cp",src,dest]
-copy_standard = { F.page: copy, F.download: copy }
+
+# binary files can't be presented on pages, embedded, or processed into teasers
+convert_binary = { F.download: copy }
+
+# document files have a way to embed them on pages in addition (managed by a template)
+convert_document = { F.embed: copy, F.page: copy, F.download: copy }
+
+# images can be converted into teasers by imagemagick as well as all the above.
 convert_image = {
     F.teaser: lambda src,dest: teaser_convert_command+[src,dest],
     F.embed: lambda src,dest: embed_convert_command+[src,dest],
@@ -56,17 +69,19 @@ convert_image = {
     F.download: copy,
 }
 
+# embeddable files can't be processed into teasers and are not separately downloadable
+convert_embeddable = { F.embed: copy, F.page: copy  }
+
 
 CONVERSIONS = {
     "jpg": convert_image,
-	"png": convert_image,
-    "md": {
-        F.embed: copy,
-        F.page: copy,
-        F.download: copy
-    },
-	"abc": copy_standard,
-	"apk": copy_standard
+    "png": convert_image,
+    "gif": convert_image,
+    "md": convert_embeddable,
+    "html": convert_embeddable,
+    "abc": convert_document,
+    "apk": convert_binary,
+    "pdf": convert_document,
 }
 
 def ipfs_add_dir(dirpath):
@@ -165,7 +180,8 @@ class Builder:
         self.files = {ctx: {} for ctx in set(CONTEXTS.values())}
 
     def add_ttl(self, filename):
-        self.g.load(filename, format='ttl')
+        self.g.load(filename, format='ttl', publicID=self.id_base)
+        logging.info(f"loading rdf from {filename}")
         return self
 
     def add_dir(self,src_root):
@@ -182,21 +198,21 @@ class Builder:
         logging.info("** Looking for media in graph **")
 
 
-        for path, dirs, files in os.walk(src_root):
+        for path, dirs, files in os.walk(src_root, followlinks=True):
+            logging.debug(f"Looking in {path}: subdirs are {dirs}")
             for f in files:
                 fullf = os.path.join(path,f)
                 if f.endswith('.ttl'):
-                    logging.info(f"loading rdf from {path}/{f}")
-                    self.g.load(fullf, format='ttl', publicID=self.id_base)
+                    self.add_ttl(fullf)
                 else:
                     # look for renditions of the entities that might be referenced
 
                     for pfx, ctx in CONTEXTS.items():
                         m = re.match("(.*)[.]([^.]*)$",f)
-                        ext = m.group(2)
-                        if not m or ext not in EXTENSIONS:
+                        if not m or m.group(2) not in EXTENSIONS:
                             logging.warning(f"unsupported file {path}/{f}")
                             continue
+                        ext = m.group(2)
 
 
                         pm = re.match("(.*)"+pfx+"[.]([^.]*)$",f)
@@ -216,7 +232,7 @@ class Builder:
                                 logging.info(f"{entity_id}@@{ctx}: found a context-specific file")
                                 continue
 
-                            logging.info(f"{entity_id}@@{ctx}: will convert {fullf}")
+                            logging.debug(f"{entity_id}@@{ctx}: will convert {fullf}")
                             self.files[ctx][entity_id] = (fullf, ext, True)
 
         return self
@@ -278,9 +294,7 @@ class Builder:
 
         return entity_dir
 
-    def _get_converted_file(self, entity_id, fn, ext, ctx, rendition_key, blob_filename):
-        entity_dir = self._make_entity_dir(entity_id)
-
+    def _get_converted_file(self, entity_id, entity_dir, fn, ext, ctx, rendition_key, blob_filename):
         # If there's not an existing file then we have to convert
         existing_converted_path = os.path.join(entity_dir,rendition_key,blob_filename) # FIXME this is a bit spaghetti
         if not os.path.exists(existing_converted_path):
@@ -302,7 +316,6 @@ class Builder:
         return existing_converted_path
 
     def _convert_file(self, entity_id, entity_dir, fn, ext, ctx):
-        subprocess.run(["cp",fn,os.path.join(entity_dir,"original."+ext)])
         converted_file = os.path.join(self.work_dir,"__last_conversion."+ext)
         logging.info(f"{entity_id}@@{ctx}: converting {fn}")
         r = subprocess.run(CONVERSIONS[ext][ctx](fn,converted_file))
@@ -418,6 +431,8 @@ class Builder:
 
                     self._add_markdown_refs(s, o)
 
+        originals_to_copy = {}
+       
         for ctx, id_to_file in self.files.items():
             for entity_id, (fn, ext, needs_conversion) in id_to_file.items():
                 if entity_id not in self.valid_contexts:
@@ -438,7 +453,11 @@ class Builder:
                         logging.warning(f"{entity_id}@@{ctx}: no conversion available for {EXTENSIONS[ext]}")
                         continue
 
-                    fn = self._get_converted_file(entity_id, fn, ext, ctx, rendition_key, blob_filename)
+                    entity_dir = self._make_entity_dir(entity_id)
+                    if fn not in originals_to_copy:
+                        originals_to_copy[fn] = os.path.join(entity_dir,"original."+ext)
+
+                    fn = self._get_converted_file(entity_id, entity_dir, fn, ext, ctx, rendition_key, blob_filename)
 
                 blob = open(fn,'rb').read()
                 logging.debug(f"{entity_id}: found rendition at {fn}")
@@ -456,6 +475,10 @@ class Builder:
                     if not blob:
                         blob = open(fn,'rb').read()
                     self._add_markdown_refs(content_id, blob.decode('utf-8'))
+
+        # now all contexts are converted, we can copy the new originals
+        for src, dest in originals_to_copy.items():
+            subprocess.run(["cp",src,dest])
 
         # markdown properties have all been converted or discarded
         self.g.remove((None, F.markdown, None))

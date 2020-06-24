@@ -17,6 +17,8 @@ logging.basicConfig(level=logging.DEBUG,handlers=log_handlers)
 
 if __name__=="__main__":
 
+    logging.info(f"*** Started FALSE at {datetime.datetime.now().isoformat()} ***")
+
     cfg = false.config.Config(
                           url_base=os.environ["FALSE_URL_BASE"],
                           output_dir=os.environ["FALSE_OUT"],
