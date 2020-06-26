@@ -3,6 +3,7 @@
 import rdflib
 from rdflib.namespace import RDF, RDFS, DC, SKOS, OWL, XSD
 import logging, os, re, io, datetime, markdown, urllib.parse, json, posixpath, time, subprocess
+from zlib import adler32
 
 F = rdflib.Namespace("http://id.colourcountry.net/false/")
 
@@ -210,7 +211,7 @@ class Builder:
                     for pfx, ctx in CONTEXTS.items():
                         m = re.match("(.*)[.]([^.]*)$",f)
                         if not m or m.group(2) not in EXTENSIONS:
-                            logging.warning(f"unsupported file {path}/{f}")
+                            logging.debug(f"ignoring file without extension: {path}/{f}")
                             continue
                         ext = m.group(2)
 
@@ -282,13 +283,18 @@ class Builder:
 
 
     def _make_entity_dir(self, entity_id, rendition_key=None):
+        # if there's an id hint already, use that (for blank nodes)
+        entity_id = self.entities.get(entity_id, entity_id)
+
         if entity_id.startswith(self.id_base):
-            entity_dir = os.path.join(self.work_dir,re.sub(r"[/\\]","__",entity_id[len(self.id_base):]))
+            entity_dir = re.sub(r"[/\\]","__",entity_id[len(self.id_base):])
         else:
-            entity_dir = os.path.join(self.work_dir,re.sub(r"[/\\]","__",entity_id))
+            entity_dir = re.sub(r"[/\\]","__",entity_id)
 
         if rendition_key:
             entity_dir = os.path.join(entity_dir, rendition_key)
+
+        entity_dir = os.path.join(self.work_dir, entity_id.__class__.__name__,entity_dir) # URIRef or BNode, normally
 
         os.makedirs(entity_dir, exist_ok=True)
 
@@ -365,8 +371,6 @@ class Builder:
         logging.debug(f"{entity_id}: finished adding rendition {ipfs_id}")
         return ipfs_id
 
-
-
     def build(self):
         self.g.bind('ipfs', IPFS)
 
@@ -382,7 +386,7 @@ class Builder:
             self.g.remove((None, entity_id, None))
             self.g.remove((None, None, entity_id))
 
-        self.entities = set()
+        self.entities = {} # id: savedir hint
         self.content = set()
         self.valid_contexts = {}
 
@@ -391,7 +395,7 @@ class Builder:
 
         type_spo = self.g.triples((None, RDF.type, None))
         for s, p, o in type_spo:
-            self.entities.add(s)
+            self.entities[s] = s
             if o == F.Content or o in doc_types:
                 logging.debug(f"{s}: is content ({s.__class__.__name__})")
                 self.content.add(s)
@@ -407,29 +411,31 @@ class Builder:
                 logging.debug(f"{entity_id}: no availability specified, defaulting to public")
                 self.valid_contexts[entity_id] = self.contexts_for_ava[F.public]
                 self.g.add((entity_id, F.hasAvailability, F.public))
+
         renditions_to_add = []
 
+        # add renditions for :markdown properties
         for content_id in self.content:
-            # look for markdown pseudo-property
             md = self.g.triples((content_id, F.markdown, None))
             for spo in md:
                 s, p, o = spo
 
-                if F.page not in self.valid_contexts[content_id]:
-                    logging.debug(f"{content_id}: discarding supplied markdown because it will never be rendered")
-                else:
-                    logging.debug(f"{content_id}: adding rendition for markdown property: {o[:50].strip()}")
-                    renditions_to_add.append({
-                        'entity_id': content_id,
-                        'blob': o.encode('utf-8'),
-                        'blob_filename': posixpath.basename(content_id)+".md",
-                        'rendition_key': RENDITION_KEYS[F.page],
-                        'mediaType': rdflib.Literal('text/markdown'),
-                        'charset': rdflib.Literal('utf-8'),
-                        'intendedUse': F.page # embeds will fall back to this, but it can be distinguished from stuff to offer as a download
-                    })
+                if isinstance(content_id,rdflib.term.BNode):
+                    checksum = adler32(o.encode("utf-8"))
+                    self.entities[content_id] = rdflib.term.BNode(re.sub("[\W]","_",o.strip()[:20])+str(checksum))
 
-                    self._add_markdown_refs(s, o)
+                logging.debug(f"{content_id}: adding rendition for markdown property: {o[:50].strip()}")
+                renditions_to_add.append({
+                    'entity_id': content_id,
+                    'blob': o.encode('utf-8'),
+                    'blob_filename': posixpath.basename(content_id)+".md",
+                    'rendition_key': RENDITION_KEYS[F.page],
+                    'mediaType': rdflib.Literal('text/markdown'),
+                    'charset': rdflib.Literal('utf-8'),
+                    'intendedUse': F.page # embeds will fall back to this, but it can be distinguished from stuff to offer as a download
+                })
+
+                self._add_markdown_refs(s, o)
 
         originals_to_copy = {}
        

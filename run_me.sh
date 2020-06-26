@@ -19,4 +19,4 @@ cp -avu static "$FALSE_OUT/static"
 
 export FALSE_HOME_PAGE=`time python3 false.py`
 
-python3 server.py "$FALSE_HOME_PAGE"
+#python3 server.py "$FALSE_HOME_PAGE"

@@ -126,7 +126,7 @@ def resolve_content_reference(m, tg, base, stage, e, upgrade_to_teaser=False):
     if src_safe not in tg.entities:
         r = "can't resolve {src}@@{ctx}: not in universe".format(src=src,ctx=ctx)
         logging.warning(r)
-        logging.warning("Entities available: {e}".format(e="\n".join(sorted(tg.entities.keys()))))
+        # logging.warning("Entities available: {e}".format(e="\n".join(sorted(tg.entities.keys()))))
         return "<!-- {r} -->".format(r=r)
     elif (tg.entities[src_safe], ctx) not in stage:
         if tg.entities[src_safe].isBlankNode():
