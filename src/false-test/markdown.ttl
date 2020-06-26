@@ -2,7 +2,7 @@
 @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
 @prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
 
-<markdown> a :Document
+<false-test/markdown> a :Document
 ;  skos:prefLabel "Markdown"@en
 ;  :updated "2018-10-12T10:18:00.000Z"^^xsd:dateTime
 ;  :markdown """
@@ -12,7 +12,7 @@ Download the source file to see how things are done.
 
 ## Linking to things
 
-You can link to any document using its ID: here is one about [templates](jinja)
+You can link to any document using its ID: here is one about [templates](false-test/jinja)
 
 URLs are relative to the base ID supplied to the build process, so you can easily link to the documents you've defined.
 (Absolute URLs are ok, but note that any prefixes defined in the TTL aren't accessible to markdown.)
@@ -30,7 +30,7 @@ If you use the link syntax for something that's not a document, you get a ["ment
 Embeds use the syntax of images in Markdown, but extend it.
 If you've defined an image as a Content (or a sub-type, like Picture), then you can embed it by its ID like this
 
-![](lingshed)
+![](false-test/lingshed)
 
 The embedded image is automatically rendered in a nice way, with a link leading to its own page.
 And because the image has a caption defined, and a description for the alt-text, there is no need to supply these every time you embed it.
@@ -38,7 +38,7 @@ And because the image has a caption defined, and a description for the alt-text,
 This isn't limited to images: any document can be embedded, including other documents written in Markdown.
 (Use templates and CSS to determine whether users know that something was embedded, or not.)
 
-![](reusable)
+![](false-test/reusable)
 
 You can't embed something that isn't a Content, only link to it.
 
@@ -64,14 +64,14 @@ Regular embeds can also be specified with `<false-content>` though I am not sure
 
 In future FALSE may allow you to define your own contexts and refer to them in this way.
 
-[1]: templates "Footnote style links are also supported."
-[2]: mentions
+[1]: false-test/jinja "Footnote style links are also supported."
+[2]: false-test/mentions
 """@en
 .
 
 # FALSE will stitch plain Markdown files to entities, as well as images. Here it'll get the content from `reusable.md`
 
-<reusable> a :Document
+<false-test/reusable> a :Document
 ;  skos:prefLabel "Reusable content"@en
 .
 

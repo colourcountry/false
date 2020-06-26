@@ -2,7 +2,7 @@
 @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
 @prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
 
-<private> a :Document
+<false-test/private> a :Document
 ;  :featuresOn <site>
 ;  skos:prefLabel "Private works"@en
 ;  :hasPublicationRights :private
@@ -13,7 +13,7 @@ If embedded in another content item, it will be silently dropped.
 """@en
 .
 
-<restricted> a :Document
+<false-test/restricted> a :Document
 ;  :featuresOn <site>
 ;  skos:prefLabel "Restricted works"@en
 ;  :hasPublicationRights :restricted

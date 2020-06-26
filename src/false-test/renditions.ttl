@@ -2,7 +2,7 @@
 @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
 @prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
 
-<renditions> a :Document
+<false-test/renditions> a :Document
 ;  :featuresOn <site>
 ;  skos:prefLabel "Renditions"@en
 ;  :updated "2018-10-15T23:08:00.000+01:00"^^xsd:dateTime
@@ -36,12 +36,12 @@ Often, a different rendition is suitable for different contexts, for example thu
 
 ## Renditions and privacy
 
-You might want to publish cut-down renditions, but keep the original files for yourself. Entities like this are termed [restricted](restricted)
+You might want to publish cut-down renditions, but keep the original files for yourself. Entities like this are termed [restricted](false-test/restricted)
 
-![](restricted)
+![](false-test/restricted)
 
-You can also specify that an entity is [private](private), in which case it will not be published and no renditions will be available.
+You can also specify that an entity is [private](false-test/private), in which case it will not be published and no renditions will be available.
 
-![](private)
+![](false-test/private)
 """@en
 .

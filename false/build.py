@@ -44,10 +44,10 @@ CONTEXTS = {
 # A RENDITION KEY distinguishes different renditions of the same content, so that conversion processes
 # can tell if they are stale. Rendition keys don't go into the graph or get exposed to IPFS or anything.
 RENDITION_KEYS = {
-     F.teaser: "t",
-     F.embed: "e",
-     F.page: "p",
-     F.download: "d"
+     F.teaser: "@teaser",
+     F.embed: "@embed",
+     F.page: "@page",
+     F.download: "@download"
 }
 
 teaser_convert_command = "convert -verbose -auto-orient -resize 400x225^ -gravity center -crop 400x225+0+0".split(" ")
@@ -200,7 +200,12 @@ class Builder:
 
 
         for path, dirs, files in os.walk(src_root, followlinks=True):
-            logging.debug(f"Looking in {path}: subdirs are {dirs}")
+            logging.debug(f"Looking in {path}")
+
+            # this is evil: https://cyluun.github.io/blog/manipulating-python-oswalk
+            # the [:] makes sure dirs is altered in place so that os.walk uses the new one :cackle:
+            dirs[:] = [d for d in dirs if not d.startswith('.') and not d.startswith('_')]
+
             for f in files:
                 fullf = os.path.join(path,f)
                 if f.endswith('.ttl'):
@@ -256,45 +261,60 @@ class Builder:
         for url in imgs:
             uriref = rdflib.URIRef(url)
             if uriref in self.private_ids:
-                logging.debug("%s: found embed of private entity %s, doing nothing" % (content_id, url))
+                logging.debug(f"{content_id}: found embed of private entity {url}, doing nothing")
             elif uriref in self.content:
-                logging.debug("%s: found embed of %s" % (content_id, url))
+                logging.debug(f"{content_id}: found embed of known content {url}")
                 self.g.add((content_id, F.incorporates, uriref))
             elif uriref in self.entities:
                 # an "embed" of a non-content is just a long-winded mention
+                logging.debug(f"{content_id}: found embed of known entity {url}")
                 self.g.add((content_id, F.mentions, uriref))
             else:
+                logging.debug(f"{content_id}: found embed of unknown entity {url}, junking it")
                 pass # legacy image
 
         for url in links:
             uriref = rdflib.URIRef(url)
             if uriref in self.private_ids:
-                logging.debug("%s: found link to private entity %s, doing nothing" % (content_id, url))
+                logging.debug(f"{content_id}: found link to private entity {url}, doing nothing")
             elif uriref in self.content:
-                logging.debug("%s: found mention of %s" % (content_id, url))
+                logging.debug(f"{content_id}: found mention of known content {url}")
                 self.g.add((content_id, F.mentions, uriref))
             elif uriref in self.entities:
-                logging.debug("%s: found mention of %s" % (content_id, url))
+                logging.debug(f"{content_id}: found mention of known entity {url}")
                 self.g.add((content_id, F.mentions, uriref))
             else:
-                logging.debug("%s: found link to %s" % (content_id, url))
                 self.g.add((content_id, F.links, uriref))
+                if uriref.startswith(self.id_base):
+                    raise ValueError(f"{content_id}: link to undefined entity within ID scheme: {url}")
+                logging.warning(f"{content_id}: found link to undefined entity {url}, assuming web page")
                 self.g.add((uriref, RDF.type, F.WebPage))
 
 
-    def _make_entity_dir(self, entity_id, rendition_key=None):
-        # if there's an id hint already, use that (for blank nodes)
-        entity_id = self.entities.get(entity_id, entity_id)
+    def _directorize_entity_id(self, entity_id):
+        if isinstance(entity_id, rdflib.BNode):
+            return ["blank",self.entities[entity_id]]
+
+        if not isinstance(entity_id, rdflib.URIRef):
+            return ["special",os.path.join(*entity_id.split("/"))]
+
+        if entity_id.startswith("/ipfs/"):
+            raise ValueError(entity_id)
+
+        entity_id = urllib.parse.urljoin(self.id_base, entity_id)
 
         if entity_id.startswith(self.id_base):
-            entity_dir = re.sub(r"[/\\]","__",entity_id[len(self.id_base):])
-        else:
-            entity_dir = re.sub(r"[/\\]","__",entity_id)
+            return ["local"]+entity_id[len(self.id_base):].split("/")
 
-        if rendition_key:
-            entity_dir = os.path.join(entity_dir, rendition_key)
+        p = urllib.parse.urlparse(entity_id)
 
-        entity_dir = os.path.join(self.work_dir, entity_id.__class__.__name__,entity_dir) # URIRef or BNode, normally
+        return [p.netloc]+p.path.split("/")+p.fragment.split("/")
+
+    def _make_entity_dir(self, entity_id, rendition_key=""):
+        # if there's an id hint already, use that (mostly for blank nodes)
+        entity_dir = os.path.join(*self._directorize_entity_id(entity_id))
+
+        entity_dir = os.path.join(self.work_dir, entity_dir, rendition_key) # URIRef or BNode, normally
 
         os.makedirs(entity_dir, exist_ok=True)
 
@@ -422,13 +442,16 @@ class Builder:
 
                 if isinstance(content_id,rdflib.term.BNode):
                     checksum = adler32(o.encode("utf-8"))
-                    self.entities[content_id] = rdflib.term.BNode(re.sub("[\W]","_",o.strip()[:20])+str(checksum))
+                    blob_filename = re.sub("[\W]","_",o.strip()[:20])+str(checksum)+".md"
+                    self.entities[content_id] = rdflib.term.BNode(blob_filename)
+                else:
+                    blob_filename = posixpath.basename(content_id)+".md"
 
                 logging.debug(f"{content_id}: adding rendition for markdown property: {o[:50].strip()}")
                 renditions_to_add.append({
                     'entity_id': content_id,
                     'blob': o.encode('utf-8'),
-                    'blob_filename': posixpath.basename(content_id)+".md",
+                    'blob_filename': blob_filename,
                     'rendition_key': RENDITION_KEYS[F.page],
                     'mediaType': rdflib.Literal('text/markdown'),
                     'charset': rdflib.Literal('utf-8'),
@@ -449,6 +472,7 @@ class Builder:
                     continue
 
                 rendition_key = RENDITION_KEYS[ctx]
+
                 blob_filename = posixpath.basename(entity_id)+"."+ext
 
                 if needs_conversion:

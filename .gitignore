@@ -103,7 +103,6 @@ venv.bak/
 # mypy
 .mypy_cache/
 
-pub/
-ipfs/
-build/
+_pub/
+_build/
 false.log

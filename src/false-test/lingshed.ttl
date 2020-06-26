@@ -6,7 +6,7 @@
 
 #  Let's define some content.
 
-<lingshed> a :Picture
+<false-test/lingshed> a :Picture
 ;  skos:prefLabel "Photo of Lingshed Gonpa"@en
 ;  :description [ a :Document; :markdown """Lingshed Gonpa seen from below. Two solar furnaces and a goat kid are visible on a terrace outside.""" ]
 ;  :caption "Lingshed Gonpa."
@@ -19,7 +19,7 @@
 
 @prefix w: <http://id.colourcountry.net/world/> .
 
-<lingshed> :depicts w:LingshedGonpa . # boom!
+<false-test/lingshed> :depicts w:LingshedGonpa . # boom!
 
 #  Now we can get to defining some real world stuff.
 
@@ -108,7 +108,7 @@ wiki:Q668 :url wikipage:Q668 ; skos:prefLabel "India on Wikidata" .
 
 # Content can mention real-world things.
 
-<mentions> a :Document
+<false-test/mentions> a :Document
 ;   skos:prefLabel "Mentioning things"@en
 ;   :markdown
 """
@@ -127,7 +127,7 @@ then it will mark the mention up with HTML5's [`data` tag][4] instead, in case y
 If FALSE knows the URL is a Web resource (like [][5]), or it doesn't recognize the linked URL at all,
 it produces a standard link.
 
-[1]: lingshed "This is a link to a document."
+[1]: false-test/lingshed "This is a link to a document."
 [2]: http://id.colourcountry.net/world/India "This is a mention of a real world entity."
 [3]: http://id.colourcountry.net/world/2018 "This is a mention of an entity with an unrenderable or unknown type."
 [4]: https://www.w3.org/TR/html50/text-level-semantics.html#the-data-element "This is a link to a Web resource."

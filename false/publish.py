@@ -97,11 +97,14 @@ class ImgRewriteExtension(markdown.extensions.Extension):
         img_rw = ImgRewriter(md, self.getConfig('tg'), self.getConfig('base'))
         md.treeprocessors.add('imgrewrite', img_rw, '>inline')
 
+def _get_page_tree(e_safe, ctx_safe, e_type, file_type):
+    return [e_type.safe, ctx_safe, e_safe+'.'+file_type]
+
 def get_page_path(e_safe, ctx_safe, e_type, output_dir, file_type='html'):
-    return os.path.join(output_dir, e_type.safe, ctx_safe, e_safe+'.'+file_type)
+    return os.path.join(output_dir, *_get_page_tree(e_safe,ctx_safe,e_type,file_type))
 
 def get_page_url(e_safe, ctx_safe, e_type, url_base, file_type='html'):
-    return '{base}/{type}/{ctx}/{e}.{ft}'.format(base=url_base, type=e_type.safe, ctx=ctx_safe, e=e_safe, ft=file_type)
+    return "/".join([url_base]+_get_page_tree(e_safe,ctx_safe,e_type,file_type))
 
 def resolve_content_reference(m, tg, base, stage, e, upgrade_to_teaser=False):
     logging.debug("Resolving content reference {ref}".format(ref=m.group(1)))
@@ -128,7 +131,8 @@ def resolve_content_reference(m, tg, base, stage, e, upgrade_to_teaser=False):
         logging.warning(r)
         # logging.warning("Entities available: {e}".format(e="\n".join(sorted(tg.entities.keys()))))
         return "<!-- {r} -->".format(r=r)
-    elif (tg.entities[src_safe], ctx) not in stage:
+
+    if (tg.entities[src_safe], ctx) not in stage:
         if tg.entities[src_safe].isBlankNode():
             # an unstaged blank node is not an error
             return ""
@@ -187,6 +191,10 @@ def get_html_body_for_rendition(tg, e, r, markdown_processor, cache_dir):
 
 def find_renditions_for_context(rr, ctx):
     for r in rr:
+        try:
+            uu = r.intendedUse
+        except AttributeError:
+            raise AttributeError(f"Rendition {r} didn't have an intended use! Check build phase, this shouldn't happen")
         for u in r.intendedUse:
             if u == ctx:
                 out = []
@@ -306,9 +314,12 @@ def publish_graph(g, cfg):
                 logging.debug("{e}@@{ctx}: no template available".format(e=e.id, ctx=ctx_id))
                 continue
 
-            logging.debug('{e}@@{ctx}: will render as {type} -> {dest}'.format(e=e.id, ctx=ctx_id, type=e_type.id, dest=dest))
+            logging.debug(f'{e.id}@@{ctx_id}: will render as {e_type.id} -> {dest} ({url})')
             stage[(e, ctx_id)]=(tpl, dest)
+
             entities_to_write.add(e)
+            if url in e:
+              logging.debug(f"wtf using existing url {e.url}")
 
             if ctx_id == F.page and 'url' not in e:
                 # add the computed URL of the item as a full page, for templates to pick up

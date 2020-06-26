@@ -1,7 +1,7 @@
 @prefix : <http://id.colourcountry.net/false/> .
 @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
 
-<jinja> a :Document
+<false-test/jinja> a :Document
 ;  skos:prefLabel "Jinja templates"@en
 ;  :markdown
 """

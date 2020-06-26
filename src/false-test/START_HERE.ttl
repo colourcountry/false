@@ -14,30 +14,33 @@
             # In addition I'll grab XSD for its dateTime type, which FALSE uses.
             @prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
 
+            # To make URLs nice, you can define a prefix for your own ID scheme, but this is optional.
+            # @prefix id: <http://id.colourcountry.net/2018/> .
+
 # I can start defining things now.
 
-<site> a :Site .
-# This statement defines a Web site with ID <site>.
+<false-test> a :Site .
+# This statement defines a Web site with ID <false-test>.
 # URLs always go in angle brackets.
 # FALSE interprets URLs relative to a base URL defined in run_me.sh. Use relative URLs for entities you're going to define yourself.
 
 # Give the web site a name.
-<site> skos:prefLabel "FALSE demo site"@en .
+<false-test> skos:prefLabel "FALSE test site"@en .
 
 # And some content for the front page. Multi-line content goes in triple quotes.
 # False uses Markdown as the syntax for normal text.
-<site> :markdown """
+<false-test> :markdown """
 This web site demonstrates as many features of FALSE as I could fit in.
 
-![](whatisfalse)
+![](false-test/whatisfalse)
 """@en
 .
 
 # ![](whatisfalse) is an embedded document which I need to define.
 # Here's a more condensed way to define a document.
-# The difference is, instead of repeating the ID like `<site>` above, we can string statements together with `;`
+# The difference is, instead of repeating the ID like `<false-test>` above, we can string statements together with `;`
 
-<whatisfalse> a :Document
+<false-test/whatisfalse> a :Document
     ;  skos:prefLabel "What is FALSE?"@en
     ;  :markdown """
 # What is FALSE
@@ -46,8 +49,8 @@ FALSE is a Fully Automated <s>Luxury</s> Lightweight Semantic Engine.
 
 It's a static web site generator powered by RDF and IPFS, with a dash of [Markdown][1] and a sprinkle of [Jinja][2].
 
-[1]: markdown
-[2]: jinja
+[1]: false-test/markdown
+[2]: false-test/jinja
 """@en
 .
 
