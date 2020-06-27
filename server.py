@@ -9,11 +9,11 @@ def root():
 
 @route('/favicon.ico')
 def fav():
-    return static_file('static/favicon.ico', root=os.path.join(os.getcwd(),'pub'))
+    return static_file('static/favicon.ico', root=os.path.join(os.getcwd(),'_pub'))
 
 @route('/<fn:path>')
 def serve(fn):
-    return static_file(fn, root=os.path.join(os.getcwd(),'pub'))
+    return static_file(fn, root=os.path.join(os.getcwd(),'_pub'))
 
 if sys.argv[1]:
     run(host='localhost', port=8818)

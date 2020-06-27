@@ -286,7 +286,7 @@ class Builder:
             else:
                 self.g.add((content_id, F.links, uriref))
                 if uriref.startswith(self.id_base):
-                    raise ValueError(f"{content_id}: link to undefined entity within ID scheme: {url}")
+                    raise ValueError(f"{content_id}: link to undefined entity within ID scheme: {url}\nContent was: {blob}")
                 logging.warning(f"{content_id}: found link to undefined entity {url}, assuming web page")
                 self.g.add((uriref, RDF.type, F.WebPage))
 
@@ -465,7 +465,7 @@ class Builder:
         for ctx, id_to_file in self.files.items():
             for entity_id, (fn, ext, needs_conversion) in id_to_file.items():
                 if entity_id not in self.valid_contexts:
-                    logging.info(f"{entity_id} is not defined, dropping")
+                    logging.debug(f"{entity_id} is not defined or not valid for {ctx}, dropping")
                     continue
 
                 if ctx not in self.valid_contexts[entity_id]:

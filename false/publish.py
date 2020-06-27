@@ -358,14 +358,14 @@ def publish_graph(g, cfg):
             body = get_html_body(tg, e, tg.entities[ctx_safe], markdown_processor, cache_dir)
 
             # Add the inner (markdown-derived) html to the graph for templates to pick up
-            logging.debug("Adding this inner html as {prop} to {e}@@{ctx}:\n{html}...".format(prop=htmlProperty, e=e.id, ctx=ctx_id, html=body[:100]))
+            logging.debug(f"Adding this inner html as {htmlProperty} to {e.id}@@{ctx_id}:\n{body[:100]}...")
             tg.add(e.id, htmlProperty, rdflib.Literal(body))
 
             try:
                 content = e.render(tpl)
             except (jinja2.exceptions.UndefinedError, RequiredAttributeError) as err:
                 # If an attribute is missing it may be a body for another entity/context that is not yet rendered
-                logging.debug("{e}@@{ctx} not ready for {tpl}: {err}".format(e=e.id, ctx=ctx_id, tpl=tpl, err=err))
+                logging.debug(f"{e.id}@@{ctx_id} not ready for {tpl}: {err}\nEntity is: {e.debug()}")
                 next_write.add((e, ctx_id, err))
                 continue
 
