@@ -465,7 +465,7 @@ class Builder:
         for ctx, id_to_file in self.files.items():
             for entity_id, (fn, ext, needs_conversion) in id_to_file.items():
                 if entity_id not in self.valid_contexts:
-                    logging.info(f"{entity_id} is not defined, dropping")
+                    logging.debug(f"{entity_id} is not defined, dropping")
                     continue
 
                 if ctx not in self.valid_contexts[entity_id]:

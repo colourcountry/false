@@ -25,7 +25,8 @@ if __name__=="__main__":
                           template_dir=os.environ["FALSE_TEMPLATES"],
                           home_site=os.environ["FALSE_HOME_SITE"],
                           id_base=os.environ["FALSE_ID_BASE"],
-                          work_dir=os.environ["FALSE_WORK_DIR"])
+                          work_dir=os.environ["FALSE_WORK_DIR"],
+                          page_output_path=os.environ.get("FALSE_PAGE_OUT_PATH",None))
 
     b = false.build.Builder(cfg.work_dir, cfg.id_base)
     b.add_ttl(os.path.join(os.path.dirname(false.build.__file__),"false.ttl"))
@@ -46,6 +47,6 @@ if __name__=="__main__":
     # Build HTML pages
     home_page = false.publish.publish_graph(g, cfg)
 
-    g.serialize(destination=os.path.join(cfg.output_dir,"site.ttl"),format="ttl")
+    g.serialize(destination=os.path.join(cfg.page_output_dir,"site.ttl"),format="ttl")
 
     print(home_page)
