@@ -300,7 +300,7 @@ def publish_graph(g, cfg):
                         logging.debug("{e}: no template at {path}".format(e=e.id, path=t_path))
                         continue
 
-                    dest = get_page_path(e_safe, ctx_safe, e_type, cfg.output_dir)
+                    dest = get_page_path(e_safe, ctx_safe, e_type, cfg.page_output_dir)
                     url = get_page_url(e_safe, ctx_safe, e_type, cfg.url_base)
                     e_types = None # found a renderable type
                     break
@@ -400,4 +400,26 @@ def publish_graph(g, cfg):
     else:
         logging.info("All written successfully.")
 
+    open(os.path.join(cfg.page_output_dir,"index.html"),"wb").write(('''
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>FALSE</title>
+    <meta http-equiv="refresh" content="1; url='''+home_page+'''">
+    <style type="text/css">
+html, body { height: 100%; }
+body { display: flex;
+       align-items: center;
+       justify-content: center;
+       font-family: monospace; }
+    </style>
+  </head>
+  <body>
+<div>
+<h1><a href="'''+home_page+'''">Continue to the site</a></h1>
+<h2>Powered by FALSE</h2>
+</div>
+  </body>
+</html>
+''').encode("utf-8"))
     return home_page
