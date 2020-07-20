@@ -2,9 +2,11 @@
 
 import rdflib
 import sys, logging, os, re, urllib.parse, shutil, datetime, subprocess
-import jinja2, markdown
+import jinja2
 import pprint
+
 from false.graph import *
+from false.markdown import *
 
 EXTERNAL_LINKS = {
   "http://www.wikidata.org/wiki/\\1": re.compile("http://www.wikidata.org/entity/(.*)")
@@ -15,6 +17,7 @@ TEMP_IPFS = rdflib.Namespace("ipfs:/") # our temporary URI scheme
 TRUE_IPFS = rdflib.Namespace("/ipfs/")
 
 # TODO: put this per-context configuration into the graph
+# note: "HTML" just means the output file format, FALSE doesn't care if it's HTML or not.
 HTML_FOR_CONTEXT = { F.link: F.linkHTML, F.teaser: F.teaserHTML, F.embed: F.embedHTML, F.page: F.pageHTML }
 
 PUB_FAIL_MSG = """
@@ -46,56 +49,6 @@ class PublishError(ValueError):
 class PublishNotReadyError(PublishError):
     pass
 
-class ImgRewriter(markdown.treeprocessors.Treeprocessor):
-    def __init__(self, md, tg, base):
-        self.tg = tg
-        self.base = base
-        super(ImgRewriter, self).__init__(md)
-
-    def run(self, doc):
-
-        for parent in doc.findall('.//img/..'):
-            for image in parent.findall('.//img'):
-                src = image.get('src')
-                src = urllib.parse.urljoin(self.base, src)
-                src_safe = self.tg.safePath(src)
-                if src_safe in self.tg.entities:
-                    logging.debug("Found image with src {src}".format(src=src))
-                    image.set('src', src)
-                    image.set('context', F.embed)
-                    image.tag = 'false-content'
-                else:
-                    logging.info("removing embed of unknown or private entity {src}".format(src=src))
-                    parent.remove(image)
-
-        for parent in doc.findall('.//a/..'):
-            for link in parent.findall('.//a'):
-                href = link.get('href')
-                href = urllib.parse.urljoin(self.base, href)
-
-                href_safe = self.tg.safePath(href)
-                if href_safe in self.tg.entities:
-                    logging.debug("Found link with href {href}".format(href=href))
-                    link.set('src', href)
-                    link.set('context', F.link)
-                    link.tag = 'false-content'
-                    #FIXME think of a way to retain the link text
-                    for c in link:
-                        link.remove(c)
-                    link.text = ''
-                else:
-                    logging.info("removing link to unknown or private entity {href}".format(href=href))
-                    parent.remove(link)
-
-class ImgRewriteExtension(markdown.extensions.Extension):
-    def __init__(self, **kwargs):
-        self.config = {'tg' : ['This has to be a string for reasons', 'The templatablegraph to query for embedded items'],
-                       'base' : ['http://example.org/', 'The base URI to use when embedded content is specified as a relative URL']}
-        super(ImgRewriteExtension, self).__init__(**kwargs)
-
-    def extendMarkdown(self, md, md_globals):
-        img_rw = ImgRewriter(md, self.getConfig('tg'), self.getConfig('base'))
-        md.treeprocessors.add('imgrewrite', img_rw, '>inline')
 
 def _get_page_tree(e_safe, ctx_safe, e_type, file_type):
     return [e_type.safe, ctx_safe, e_safe+'.'+file_type]
@@ -130,7 +83,7 @@ def resolve_content_reference(m, tg, base, stage, e, upgrade_to_teaser=False):
         r = "can't resolve {src}@@{ctx}: not in universe".format(src=src,ctx=ctx)
         logging.warning(r)
         # logging.warning("Entities available: {e}".format(e="\n".join(sorted(tg.entities.keys()))))
-        return "<!-- {r} -->".format(r=r)
+        return ""
 
     if (tg.entities[src_safe], ctx) not in stage:
         if tg.entities[src_safe].isBlankNode():
@@ -138,7 +91,7 @@ def resolve_content_reference(m, tg, base, stage, e, upgrade_to_teaser=False):
             return ""
         r = "can't resolve {src}@@{ctx}: not staged".format(src=src,ctx=ctx)
         logging.warning(r)
-        return "<!-- {r} -->".format(r=r)
+        return ""
 
     # the stage has (template, path) for each context so [1] references the path
     fn = stage[(tg.entities[src_safe],ctx)][1]
@@ -157,26 +110,32 @@ def get_html_body_for_rendition(tg, e, r, markdown_processor, cache_dir):
             return 'utf-8'
 
     mt = r.mediaType
+    logging.debug(f"{e.id}: renditions available are {mt}")
 
     if rdflib.Literal('text/markdown') in mt:
         logging.debug(f"{e.id}: using markdown rendition {r.id}")
         content = ipfs_cat(r.id, cache_dir)
-
         return markdown_processor.convert(content.decode(get_charset(r, e, mt)))
 
     blobURL = r.blobURL.pick().id
 
     # FIXME: put this stuff into configuration and templates, not here
 
+    if rdflib.Literal('text/html') in mt:
+        # html is assumed to be a complete page
+        logging.debug('{e}: using html rendition'.format(e=e.id))
+        return '<div class="__embed__"><iframe src="{url}"></iframe></div>'.format(url=blobURL)
+
     for m in mt:
         if m.startswith('image/'):
             logging.debug(f"{e.id}: using {m} rendition")
             return '<img src="{url}">'.format(url=blobURL)
 
-    if rdflib.Literal('text/html') in mt:
-        # html is assumed to be a complete page
-        logging.debug('{e}: using html rendition'.format(e=e.id))
-        return '<div class="__embed__"><iframe src="{url}"></iframe></div>'.format(url=blobURL)
+    for m in mt:
+        if m.startswith('text/'):
+            logging.debug(f"{e.id}: using {m} rendition")
+            content = ipfs_cat(r.id, cache_dir)
+            return content.decode("utf-8")
 
     if rdflib.Literal('application/pdf') in mt:
         logging.debug('{e}: using pdf rendition'.format(e=e.id))
@@ -220,7 +179,8 @@ def get_html_body(tg, e, ctx, markdown_processor, cache_dir):
         if eh:
             return eh
 
-    return '<!-- {e}@@{ctx} (tried {av}) -->'.format(e=e.id, ctx=ctx.id, av=available)
+    logging.debug(f"{e.id}@@{ctx.id}: no suitable rendition")
+    return ""
 
 def publish_graph(g, cfg):
 
@@ -247,13 +207,13 @@ def publish_graph(g, cfg):
 
     jinja_e = jinja2.Environment(
         loader=jinja2.FileSystemLoader(cfg.template_dir),
-        autoescape=True,
+        autoescape=cfg.html_escape,
         trim_blocks=True,
         lstrip_blocks=True,
     )
     jinja_e.globals["now"] = get_time_now
 
-    markdown_processor = markdown.Markdown(output_format="html5", extensions=[ImgRewriteExtension(tg=tg, base=cfg.id_base), 'tables'])
+    markdown_processor = get_markdown_processor(tg,cfg)
 
     embed_html = {}
     entities_to_write = set()
@@ -300,8 +260,8 @@ def publish_graph(g, cfg):
                         logging.debug("{e}: no template at {path}".format(e=e.id, path=t_path))
                         continue
 
-                    dest = get_page_path(e_safe, ctx_safe, e_type, cfg.page_output_dir)
-                    url = get_page_url(e_safe, ctx_safe, e_type, cfg.url_base)
+                    dest = get_page_path(e_safe, ctx_safe, e_type, cfg.page_output_dir, cfg.page_file_type)
+                    url = get_page_url(e_safe, ctx_safe, e_type, cfg.url_base, cfg.page_file_type)
                     e_types = None # found a renderable type
                     break
 
@@ -369,15 +329,19 @@ def publish_graph(g, cfg):
                 next_write.add((e, ctx_id, err))
                 continue
 
-            try:
-                content = re.sub("<p>\s*<em>\s*<false-content([^>]*)>\s*</false-content>\s*</em>\s*</p>", lambda m: resolve_content_reference(m, tg, cfg.id_base, stage, e, True), content)
-                content = re.sub("<p>\s*<em>\s*<false-content([^>]*)>\s*</em>\s*</p>", lambda m: resolve_content_reference(m, tg, cfg.id_base, stage, e, True), content)
-                content = re.sub("<p>\s*<false-content([^>]*)>\s*</false-content>\s*</p>", lambda m: resolve_content_reference(m, tg, cfg.id_base, stage, e, False), content)
-                content = re.sub("<p>\s*<false-content([^>]*)>\s*</p>", lambda m: resolve_content_reference(m, tg, cfg.id_base, stage, e, False), content)
-                content = re.sub("<em>\s*<false-content([^>]*)>\s*</false-content>\s*</em>", lambda m: resolve_content_reference(m, tg, cfg.id_base, stage, e, True), content)
-                content = re.sub("<em>\s*<false-content([^>]*)>\s*</em>", lambda m: resolve_content_reference(m, tg, cfg.id_base, stage, e, True), content)
-                content = re.sub("<false-content([^>]*)>\s*</false-content>", lambda m: resolve_content_reference(m, tg, cfg.id_base, stage, e, False), content)
-                content = re.sub("<false-content([^>]*)>", lambda m: resolve_content_reference(m, tg, cfg.id_base, stage, e, False), content)
+            upgrade = lambda m: resolve_content_reference(m, tg, cfg.id_base, stage, e, True)
+            inline = lambda m: resolve_content_reference(m, tg, cfg.id_base, stage, e, False)
+
+            try: # don't ask
+                content = re.sub("<p>\s*<em>\s*<false-content([^>]*src=[^>]+)>\s*</false-content>\s*</em>\s*</p>", upgrade, content)
+                content = re.sub("<p>\s*<em>\s*<false-content([^>]*src=[^>]+)>\s*</em>\s*</p>", upgrade, content)
+                content = re.sub("<p>\s*<false-content([^>]*src=[^>]+)>\s*</false-content>\s*</p>", inline, content)
+                content = re.sub("<p>\s*<false-content([^>]*src=[^>]+)>\s*</p>", inline, content)
+                content = re.sub("<em>\s*<false-content([^>]*src=[^>]+)>\s*</false-content>\s*</em>", upgrade, content)
+                content = re.sub("<em>\s*<false-content([^>]*src=[^>]+)>\s*</em>", upgrade, content)
+                content = re.sub("<false-content([^>]*src=[^>]+)>\s*</false-content>", inline, content)
+                content = re.sub("<false-content([^>]*src=[^>]+)>", inline, content)
+                content = re.sub("<false-rescued([^>]*src=[^>]+)>", inline, content)
             except PublishNotReadyError as err:
                 logging.debug("{e}@@{ctx} deferred: {err}".format(e=e.id, ctx=ctx_id, err=err))
                 next_write.add((e, ctx_id, err))

@@ -43,6 +43,9 @@ class TemplatableSet(set):
     def difference(self, other):
         return TemplatableSet(set.difference(self, other))
 
+    def without(self, other):
+        return TemplatableSet(set.difference(self, other))
+
     def as_str(self):
         return str(self)
 

@@ -11,16 +11,8 @@ F = rdflib.Namespace("http://id.colourcountry.net/false/")
 # so we'll temporarily use a URI scheme, and make good on final publish
 IPFS = rdflib.Namespace("ipfs:/")
 
-log_handlers=[logging.StreamHandler()]
-log_handlers[0].setLevel(logging.INFO)
-
-try:
-    log_handlers.append(logging.FileHandler(os.environ["FALSE_LOG_FILE"]))
-except KeyError:
-    pass
-logging.basicConfig(level=logging.DEBUG,handlers=log_handlers)
-
 # TODO make these configurable
+# NOTE only UTF-8 is supported for any text/* type
 EXTENSIONS = {
     "html": "text/html",
     "md": "text/markdown",
@@ -191,7 +183,7 @@ class Builder:
                 return url
             p, s = os.path.split(path)
             if not s:
-                return url
+                return urllib.parse.quote(url)
             if url:
                 return path_to_id(p, os.path.join(s, url))
             return path_to_id(p, s)
@@ -223,7 +215,7 @@ class Builder:
 
                         pm = re.match("(.*)"+pfx+"[.]([^.]*)$",f)
                         if pm:
-                            entity_id = rdflib.URIRef(urllib.parse.urljoin(self.id_base, path_to_id(path[len(src_root):], pm.group(1))))
+                            entity_id = rdflib.URIRef(urllib.parse.urljoin(self.id_base, path_to_id(path[len(src_root):], urllib.parse.quote(pm.group(1)))))
 
                             if not path.startswith(src_root):
                                 raise ValueError(f"expected path under {src_root}, got {path}")
@@ -232,7 +224,7 @@ class Builder:
                             self.files[ctx][entity_id] = (fullf, ext, False)
                             continue
                         else:
-                            entity_id = rdflib.URIRef(urllib.parse.urljoin(self.id_base, path_to_id(path[len(src_root):], m.group(1))))
+                            entity_id = rdflib.URIRef(urllib.parse.urljoin(self.id_base, path_to_id(path[len(src_root):], urllib.parse.quote(m.group(1)))))
 
                             if entity_id in self.files[ctx]:
                                 logging.info(f"{entity_id}@@{ctx}: found a context-specific file")

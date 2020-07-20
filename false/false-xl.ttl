@@ -113,16 +113,29 @@
 ;  rdfs:range xsd:dateTime
 .
 
+:hosts a owl:ObjectProperty
+;  skos:prefLabel "hosts"@en
+;  rdfs:domain :Site
+;  rdfs:range :Work
+;  rdfs:subPropertyOf skos:related
+.
+
+:hostedOn a owl:ObjectProperty
+;  skos:prefLabel "is hosted on"@en
+;  rdfs:subPropertyOf skos:related
+;  owl:inverseOf :hosts
+.
+
 :features a owl:ObjectProperty
 ;  skos:prefLabel "features"@en
 ;  rdfs:domain :Site
 ;  rdfs:range :Work
-;  rdfs:subPropertyOf skos:narrower
+;  rdfs:subPropertyOf :hosts
 .
 
 :featuresOn a owl:ObjectProperty
 ;  skos:prefLabel "features on"@en
-;  rdfs:subPropertyOf skos:broader
+;  rdfs:subPropertyOf :hostedOn
 ;  owl:inverseOf :features
 .
 

@@ -26,7 +26,8 @@ if __name__=="__main__":
                           home_site=os.environ["FALSE_HOME_SITE"],
                           id_base=os.environ["FALSE_ID_BASE"],
                           work_dir=os.environ["FALSE_WORK_DIR"],
-                          page_output_path=os.environ.get("FALSE_PAGE_OUT_PATH",None))
+                          page_output_path=os.environ.get("FALSE_PAGE_OUT_PATH",None),
+                          page_file_type=os.environ.get("FALSE_PAGE_FILE_TYPE","html"))
 
     b = false.build.Builder(cfg.work_dir, cfg.id_base)
     b.add_ttl(os.path.join(os.path.dirname(false.build.__file__),"false.ttl"))
