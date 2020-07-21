@@ -2,8 +2,7 @@
 
 import rdflib
 import sys, logging, os, re, urllib.parse, shutil, datetime, subprocess
-import jinja2
-import pprint
+import jinja2, pprint, traceback
 
 from false.graph import *
 from false.markdown import *
@@ -209,7 +208,7 @@ def publish_graph(g, cfg):
         loader=jinja2.FileSystemLoader(cfg.template_dir),
         autoescape=cfg.html_escape,
         trim_blocks=True,
-        lstrip_blocks=True,
+        lstrip_blocks=True
     )
     jinja_e.globals["now"] = get_time_now
 
@@ -301,7 +300,7 @@ def publish_graph(g, cfg):
         iteration += 1
         progress = False
         logging.info("Publish iteration {i}: {n} of {m} destinations left".format(i=iteration, n=len(to_write), m=len(stage)))
-        next_write = set()
+        next_write = {}
 
         # now build the HTML for everything in the different contexts and add to the graph
         for item in to_write:
@@ -326,7 +325,7 @@ def publish_graph(g, cfg):
             except (jinja2.exceptions.UndefinedError, RequiredAttributeError) as err:
                 # If an attribute is missing it may be a body for another entity/context that is not yet rendered
                 logging.debug(f"{e.id}@@{ctx_id} not ready for {tpl}: {err}\nEntity is: {e.debug()}")
-                next_write.add((e, ctx_id, err))
+                next_write[(e, ctx_id)] = (err, traceback.format_exc())
                 continue
 
             upgrade = lambda m: resolve_content_reference(m, tg, cfg.id_base, stage, e, True)
@@ -344,7 +343,7 @@ def publish_graph(g, cfg):
                 content = re.sub("<false-rescued([^>]*src=[^>]+)>", inline, content)
             except PublishNotReadyError as err:
                 logging.debug("{e}@@{ctx} deferred: {err}".format(e=e.id, ctx=ctx_id, err=err))
-                next_write.add((e, ctx_id, err))
+                next_write[(e, ctx_id)] = (err, traceback.format_exc())
                 continue
 
             os.makedirs(os.path.dirname(dest), exist_ok=True)
@@ -358,9 +357,9 @@ def publish_graph(g, cfg):
 
     if to_write:
         err_list = []
-        for item in to_write:
-            err_list.append("{e}@@{ctx}: {err}".format(e=item[0].id, ctx=item[1], err=item[2]))
-        raise PublishError("{msg}\n     {detail}\n\n".format(msg=PUB_FAIL_MSG, detail='\n     '.join(err_list)))
+        for item,error in to_write.items():
+            err_list.append("{e}@@{ctx}: {err}".format(e=item[0].id, ctx=item[1], err=f"{error[0]}\n{error[1]}"))
+        raise PublishError("{msg}\n     {detail}\n\n".format(msg=PUB_FAIL_MSG, detail='\n\n\n'.join(err_list)))
     else:
         logging.info("All written successfully.")
 

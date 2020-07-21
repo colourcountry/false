@@ -11,27 +11,51 @@ class UnescapePostprocessor(markdown.postprocessors.Postprocessor):
 
 class GeminiTreeprocessor(markdown.treeprocessors.Treeprocessor):
     def run(self, doc):
-        def el_to_text(e):
-            inner_text = re.sub(r"[\r\n]+"," ",e.text or "")
+        def el_to_text(e, parent=None, i=1):
+            block = False
+            inner_text = e.text or "";
             tail = re.sub(r"[\r\n]+"," ",e.tail or "")
 
-            if e.tag.lower() == "p":
-                s = "\n\n"+inner_text
-            elif e.tag.lower() in ["li","ul"]:
-                s = "\n"
+            if e.tag.lower() == "p" :
+                block = True
+                if parent:
+                    if parent.tag.lower() == "li":
+                        if i == 1:
+                            s = inner_text
+                        else:
+                            s = f"\n   {inner_text}"
+                    else:
+                        s = inner_text
+                else:
+                    s = f"\n{inner_text}\n"
+            elif e.tag.lower() == "blockquote" :
+                block = True
+                s = f"> {inner_text}\n"
+            elif e.tag.lower() == "hr":
+                block = True
+                s = "\n-\n"
+            elif e.tag.lower() in ["ol","ul"]:
+                block = True
+                s = ""
+            elif e.tag.lower() in ["li"]:
+                block = True
+                if parent and parent.tag.lower() == "ol":
+                  s = f"{i}. {inner_text}"
+                else:
+                  s = f"*  {inner_text}"
             elif e.tag.lower() in ["h1","h2","h3","h4","h5","h6"]:
-                s = "\n\n### "+inner_text
-            elif e.tag.lower() == "li":
-                s = "\n* "+inner_text
+                block = True
+                s = f"\n### {inner_text}\n"
             elif e.tag.lower() == "code":
-                if "\n" in e.text:
-                    s = "\n```\n"+e.text+"\n```\n"
+                if parent and parent.tag.lower() == "pre":
+                    block = True
+                    s = f"```\n{inner_text}\n```"
                 else:
                     s = " ❰ "+inner_text+" ❱ "
-            elif e.tag.lower() == "b":
-                s = "❧"+inner_text+"☙"
-            elif e.tag.lower() == "i":
-                s = "⋰"+inner_text+"⋰"
+            elif e.tag.lower() == "em":
+                s = " ❧ "+inner_text+" ☙ "
+            elif e.tag.lower() == "strong":
+                s = " ⋰ "+inner_text+" ⋰ "
             elif e.tag.lower() == "false-content":
                 # Because we have element placeholders kicking around
                 # it seems impossible to protect this as an actual element,
@@ -40,15 +64,24 @@ class GeminiTreeprocessor(markdown.treeprocessors.Treeprocessor):
                 s = etree.tostring(e,encoding="unicode",short_empty_elements=True)
                 if e.tail:
                     s = s[:-len(e.tail)]
-            else:
+            elif e.tag.lower() in ["pre", "code"]:
                 s = inner_text
+            elif e.tag.lower() == "div":
+                s = ""
+            else:
+                s = etree.tostring(e,encoding="unicode",short_empty_elements=True)
+                if e.tail:
+                    s = s[:-len(e.tail)]
 
-            for c in e:
-                s += el_to_text(c)
+            if parent and parent.tag.lower() == "blockquote":
+                s = "> "+s
 
-            return s+tail
+            for i,c in enumerate(e):
+                s += el_to_text(c,e,i+1)
 
-        new_content = el_to_text(doc)
+            return s+tail+("\n" if block else "")
+
+        new_content = "\n"+el_to_text(doc)
         root = etree.Element(doc.tag);
         root.text = new_content;
         return root
