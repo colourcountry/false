@@ -281,6 +281,7 @@ class Builder:
                     raise ValueError(f"{content_id}: link to undefined entity within ID scheme: {url}\nContent was: {blob}")
                 logging.warning(f"{content_id}: found link to undefined entity {url}, assuming web page")
                 self.g.add((uriref, RDF.type, F.WebPage))
+                self.g.add((uriref, SKOS.prefLabel, uriref))
 
 
     def _directorize_entity_id(self, entity_id):
